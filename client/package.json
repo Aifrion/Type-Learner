@@ -1,0 +1,27 @@
+{
+  "name": "type-learner-client",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-router-dom": "^7.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^5.1.3",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}
