@@ -10,6 +10,12 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: "./src/setupTests.ts",
+    include: ["tests/**/*.{test,spec}.{ts,tsx}"]
+  },
   server: {
     port: 5173,
     proxy: {
