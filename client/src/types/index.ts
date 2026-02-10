@@ -19,6 +19,14 @@ export interface GameState {
   status: 'waiting' | 'playing' | 'finished';
 }
 
+// Typing phase types
+export interface TypingStats {
+  wpm: number;
+  accuracy: number;
+  correctChars: number;
+  totalChars: number;
+}
+
 // WebSocket event types
 export interface WSMessage {
   type: string;
