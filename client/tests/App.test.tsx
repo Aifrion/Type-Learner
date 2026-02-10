@@ -23,8 +23,12 @@ describe("App routing", () => {
   });
 
   it("renders game page with code", () => {
-    renderWithRoute("/game/42");
-    expect(screen.getByText(/game: 42/i)).toBeInTheDocument();
+    renderWithRoute("/typing/42");
+    expect(
+      screen.getByText(
+        /What gas do plants absorb from the atmosphere during photosynthesis\?/i
+      )
+    ).toBeInTheDocument();
   });
 
   it("renders results page with code", () => {
