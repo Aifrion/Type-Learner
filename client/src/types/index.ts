@@ -5,11 +5,17 @@ export interface Player {
   score: number;
 }
 
+export interface AnswerOption {
+  id: string;
+  text: string;
+}
+
 export interface Question {
   id: string;
   text: string;
   answer: string;
   timeLimit: number;
+  options: AnswerOption[];
 }
 
 export interface GameState {
