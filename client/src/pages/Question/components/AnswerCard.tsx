@@ -7,38 +7,22 @@ interface AnswerCardProps {
   onSelect: () => void;
 }
 
-const colorClasses = {
-  red: {
-    default: 'bg-red-500 hover:bg-red-600 border-red-600',
-    correct: 'bg-green-500 border-green-600',
-    wrong: 'bg-red-700 border-red-800'
-  },
-  blue: {
-    default: 'bg-blue-500 hover:bg-blue-600 border-blue-600',
-    correct: 'bg-green-500 border-green-600',
-    wrong: 'bg-red-700 border-red-800'
-  },
-  yellow: {
-    default: 'bg-yellow-400 hover:bg-yellow-500 border-yellow-600 text-gray-900',
-    correct: 'bg-green-500 border-green-600 text-white',
-    wrong: 'bg-red-700 border-red-800 text-white'
-  },
-  green: {
-    default: 'bg-green-500 hover:bg-green-600 border-green-600',
-    correct: 'bg-green-500 border-green-600',
-    wrong: 'bg-red-700 border-red-800'
-  }
+const stateClasses = {
+  default:
+    'border-slate-200 bg-white shadow hover:-translate-y-[1px] hover:shadow-md focus:ring-purple-300 text-slate-800',
+  correct: 'border-green-500 bg-green-500 shadow text-white',
+  wrong: 'border-red-500 bg-red-500 shadow text-white',
 };
 
 export default function AnswerCard({
   label,
   text,
-  color,
+  color: _color,
   state,
   disabled,
-  onSelect
+  onSelect,
 }: AnswerCardProps) {
-  const classes = colorClasses[color][state];
+  const classes = stateClasses[state];
   const isDisabled = disabled || state !== 'default';
 
   return (
@@ -47,16 +31,23 @@ export default function AnswerCard({
       onClick={onSelect}
       disabled={isDisabled}
       className={`
-        w-full rounded-2xl border-4 p-6 text-left font-semibold text-white shadow-lg
-        transition-all duration-200
+        flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-base font-medium
+        transition-all focus:outline-none focus:ring-2
         ${classes}
-        ${isDisabled ? 'cursor-not-allowed opacity-100' : 'cursor-pointer active:scale-[0.98]'}
+        ${isDisabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}
       `}
+      aria-pressed={state !== 'default'}
+      aria-label={`Option ${label}: ${text}`}
     >
-      <span className="mr-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/25 text-lg font-bold">
+      <span
+        className={`
+          inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold
+          ${state === 'correct' ? 'bg-white/25 text-white' : state === 'wrong' ? 'bg-white/25 text-white' : 'bg-purple-100 text-purple-700'}
+        `}
+      >
         {label}
       </span>
-      {text}
+      <span className="text-left">{text}</span>
     </button>
   );
 }

@@ -72,11 +72,11 @@ export default function QuestionPhase({
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-3" role="group" aria-label="Answer options">
           {question.options.map((opt, index) => (
             <AnswerCard
               key={opt.id}
-              label={opt.id}
+              label={String(index + 1)}
               text={opt.text}
               color={opt.color}
               state={
