@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import Home from '@/pages/Home';
 import Lobby from '@/pages/Lobby';
 import Game from '@/pages/Game';
+import Question from '@/pages/Question';
 import Results from '@/pages/Results';
 import QuizCreate from '@/pages/QuizCreate';
 
@@ -10,6 +11,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/lobby/:code" element={<Lobby />} />
+      <Route path="/question/:code" element={<Question />} />
       <Route path="/typing/:code" element={<Game />} />
       <Route path="/results/:code" element={<Results />} />
       <Route path="/create" element={<QuizCreate />} />
@@ -18,3 +20,4 @@ function App() {
 }
 
 export default App;
+
