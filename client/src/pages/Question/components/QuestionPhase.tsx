@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
-import Timer from '@/pages/Game/components/Timer';
-import AnswerCard from './AnswerCard';
+import { useState, useCallback } from "react";
+import Timer from "@/pages/Game/components/Timer";
+import AnswerCard from "./AnswerCard";
 
 export interface MultipleChoiceOption {
   id: string;
   text: string;
-  color: 'red' | 'blue' | 'yellow' | 'green';
+  color: "red" | "blue" | "yellow" | "green";
 }
 
 export interface MultipleChoiceQuestion {
@@ -27,7 +27,7 @@ export default function QuestionPhase({
   question,
   currentQuestionNumber,
   totalQuestions,
-  onTimeUp
+  onTimeUp,
 }: QuestionPhaseProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [timerStopped, setTimerStopped] = useState(false);
@@ -45,12 +45,12 @@ export default function QuestionPhase({
         setTimerStopped(true);
       }
     },
-    [selectedIndex, question.correctIndex]
+    [selectedIndex, question.correctIndex],
   );
 
   const hasAnswered = selectedIndex !== null;
   const isCorrect = selectedIndex === question.correctIndex;
-  const correctAnswerText = question.options[question.correctIndex]?.text ?? '';
+  const correctAnswerText = question.options[question.correctIndex]?.text ?? "";
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -72,7 +72,11 @@ export default function QuestionPhase({
           </h2>
         </div>
 
-        <div className="flex flex-col gap-3" role="group" aria-label="Answer options">
+        <div
+          className="flex flex-col gap-3"
+          role="group"
+          aria-label="Answer options"
+        >
           {question.options.map((opt, index) => (
             <AnswerCard
               key={opt.id}
@@ -81,12 +85,12 @@ export default function QuestionPhase({
               color={opt.color}
               state={
                 selectedIndex === null
-                  ? 'default'
+                  ? "default"
                   : index === question.correctIndex
-                    ? 'correct'
+                    ? "correct"
                     : index === selectedIndex
-                      ? 'wrong'
-                      : 'default'
+                      ? "wrong"
+                      : "default"
               }
               disabled={hasAnswered}
               onSelect={() => handleSelect(index)}
@@ -98,12 +102,12 @@ export default function QuestionPhase({
           <div
             className={`rounded-xl border-2 p-4 text-center font-semibold ${
               isCorrect
-                ? 'border-green-300 bg-green-50 text-green-800'
-                : 'border-red-300 bg-red-50 text-red-800'
+                ? "border-green-300 bg-green-50 text-green-800"
+                : "border-red-300 bg-red-50 text-red-800"
             }`}
           >
             {isCorrect
-              ? 'Correct!'
+              ? "Correct!"
               : `Wrong — the correct answer is ${correctAnswerText}.`}
           </div>
         )}
