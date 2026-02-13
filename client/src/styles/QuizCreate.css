@@ -12,7 +12,6 @@ body {
   padding: 2rem;
 }
 
-/* --- ADDED HEADING STYLE --- */
 h1 {
   color: #5e4b9e;
   font-size: 2rem;
@@ -218,7 +217,7 @@ hr {
 }
 .btn-save:hover { background-color: #3e3175; transform: translateY(-1px); }
 
-/* --- Preview List --- */
+/* --- Preview List (Mobile Default) --- */
 .questions-list-section {
   margin-top: 3rem;
   border-top: 1px solid #e0dbe9;
@@ -356,4 +355,54 @@ hr {
 @keyframes fadeIn {
   from { opacity: 0; transform: scale(0.9); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* Mobile First is the default (above).
+   The following applies to Tablets (Portrait+), Laptops, and Desktops.
+   Breakpoint: 900px
+*/
+@media (min-width: 900px) {
+  .quiz-create-container {
+    max-width: 1200px; /* Increase width to fit both columns */
+  }
+
+  /* The wrapper becomes a 2-column grid */
+  .create-quiz-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr; /* Editor slightly larger than list */
+    gap: 3rem;
+    align-items: start;
+  }
+
+  /* Adjust Editor styling for grid context */
+  .question-editor {
+    margin-top: 0;
+  }
+
+  /* Adjust List styling for grid context (Right Column) */
+  .questions-list-section {
+    margin-top: 0;
+    border-top: none;
+    border-left: 1px solid #e0dbe9;
+    padding-top: 0;
+    padding-left: 2rem;
+    height: 100%;
+  }
+
+  /* In the sidebar, stack questions in a single column 
+     instead of the grid-auto-fill used on mobile */
+  .questions-list {
+    grid-template-columns: 1fr; 
+  }
+
+  /* Placeholder text when no questions exist */
+.empty-state {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  margin-top: 2rem;
+  padding: 2rem;
+  border: 2px dashed #e0dbe9;
+  border-radius: 12px;
+}
 }
