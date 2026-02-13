@@ -13,7 +13,9 @@ describe("App routing", () => {
   it("shows the home page at root", () => {
     renderWithRoute("/");
     expect(
-      screen.getByRole("heading", { name: /type learner/i })
+      screen.getByRole("heading", {
+        name: /build speed and confidence with every session/i,
+      })
     ).toBeInTheDocument();
   });
 
