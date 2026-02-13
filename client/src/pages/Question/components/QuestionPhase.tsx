@@ -3,9 +3,9 @@ import Timer from "@/pages/Game/components/Timer";
 import AnswerCard from "./AnswerCard";
 
 export interface MultipleChoiceOption {
-  id: string;
   text: string;
-  color: "red" | "blue" | "yellow" | "green";
+  id?: string;
+  color?: "red" | "blue" | "yellow" | "green";
 }
 
 export interface MultipleChoiceQuestion {
@@ -79,10 +79,10 @@ export default function QuestionPhase({
         >
           {question.options.map((opt, index) => (
             <AnswerCard
-              key={opt.id}
+              key={index}
               label={String(index + 1)}
               text={opt.text}
-              color={opt.color}
+              color={opt.color ?? "red"}
               state={
                 selectedIndex === null
                   ? "default"

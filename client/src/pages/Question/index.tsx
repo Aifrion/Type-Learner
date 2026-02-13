@@ -5,50 +5,59 @@ import { db } from "@/firebase";
 import QuestionPhase from "./components/QuestionPhase";
 import type { MultipleChoiceQuestion } from "./components/QuestionPhase";
 
-// const mockQuestion: MultipleChoiceQuestion = {
-//   id: "1",
-//   text: "What gas do plants absorb from the atmosphere during photosynthesis?",
-//   timeLimit: 15,
-//   options: [
-//     { id: "A", text: "Oxygen", color: "red" },
-//     { id: "B", text: "Carbon dioxide", color: "blue" },
-//     { id: "C", text: "Nitrogen", color: "yellow" },
-//     { id: "D", text: "Hydrogen", color: "green" },
-//   ],
-//   correctIndex: 1,
-// };
-
-const mockGameState = {
-  currentQuestion: 1,
-  totalQuestions: 1,
-};
+/** Map Firebase question (answers = list of strings) to MultipleChoiceQuestion */
+function toMultipleChoiceQuestion(
+  raw: { question: string; answers: string[]; correctAnswer: number },
+  questionId: string,
+  timeLimit = 15,
+): MultipleChoiceQuestion {
+  const options = (raw.answers ?? []).map((text) => ({ text }));
+  return {
+    id: questionId,
+    text: raw.question ?? "",
+    timeLimit,
+    options,
+    correctIndex: raw.correctAnswer ?? 0,
+  };
+}
 
 export default function Question() {
   const { code } = useParams<{ code: string }>();
-  const [questionSets, setQuestionSets] = useState<any>([]);
+  const [questionSets, setQuestionSets] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // The useEffect here is fetching the data from the firestore database
   useEffect(() => {
     async function fetchQuestionSets() {
-      const questionSetsCollection = await getDocs(
-        collection(db, "questionSets"),
-      );
-      const data = questionSetsCollection.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setQuestionSets(data);
-      setLoading(false);
+      setLoading(true);
+      setError(null);
+      try {
+        const snapshot = await getDocs(collection(db, "questionSets"));
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setQuestionSets(data);
+        setCurrentIndex(0);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load questions");
+      } finally {
+        setLoading(false);
+      }
     }
     fetchQuestionSets();
   }, []);
 
   const handleTimeUp = () => {
     console.log("Time up. Game code:", code);
+    const set = questionSets[0];
+    const questions = set?.questions ?? [];
+    if (currentIndex + 1 < questions.length) {
+      setCurrentIndex((i) => i + 1);
+    }
   };
 
-  // Checking loading state while fetching data from firestore database
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-gray-500">
@@ -57,32 +66,39 @@ export default function Question() {
     );
   }
 
-  // Logs to look at data structure
-  console.log(questionSets);
-  console.log(questionSets[0].questions[0]);
-  console.log(questionSets[0].questions[0].answers);
-  console.log(questionSets[0].questions[0].correctAnswer);
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-red-600">
+        {error}
+      </div>
+    );
+  }
 
-  // Changes to mockQuestion so that it uses database data. (Needs reviewing and refining)
-  const mockQuestionData = questionSets[0].questions[0];
-  const mockQuestion: MultipleChoiceQuestion = {
-    id: "1",
-    text: mockQuestionData.question,
-    timeLimit: 15,
-    options: [
-      { id: "A", text: mockQuestionData.answers[0], color: "red" },
-      { id: "B", text: mockQuestionData.answers[1], color: "blue" },
-      { id: "C", text: mockQuestionData.answers[2], color: "yellow" },
-      { id: "D", text: mockQuestionData.answers[3], color: "green" },
-    ],
-    correctIndex: mockQuestionData.correctAnswer,
-  };
+  const set = questionSets[0];
+  const questions: Array<{
+    question: string;
+    answers: string[];
+    correctAnswer: number;
+  }> = set?.questions ?? [];
+  if (questions.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-gray-500">
+        No questions found.
+      </div>
+    );
+  }
+
+  const rawQuestion = questions[currentIndex];
+  const question = toMultipleChoiceQuestion(
+    rawQuestion,
+    String(currentIndex),
+  );
 
   return (
     <QuestionPhase
-      question={mockQuestion}
-      currentQuestionNumber={mockGameState.currentQuestion}
-      totalQuestions={mockGameState.totalQuestions}
+      question={question}
+      currentQuestionNumber={currentIndex + 1}
+      totalQuestions={questions.length}
       onTimeUp={handleTimeUp}
     />
   );

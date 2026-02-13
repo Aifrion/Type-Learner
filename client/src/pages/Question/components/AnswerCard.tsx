@@ -1,7 +1,7 @@
 interface AnswerCardProps {
   label: string;
   text: string;
-  color: 'red' | 'blue' | 'yellow' | 'green';
+  color?: 'red' | 'blue' | 'yellow' | 'green';
   state: 'default' | 'correct' | 'wrong';
   disabled: boolean;
   onSelect: () => void;
