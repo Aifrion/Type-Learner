@@ -20,8 +20,18 @@ const QuizCreate: React.FC = () => {
   });
 
   const [quizTitle, setQuizTitle] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
 
-  // --- Form Handlers ---
+  const showAlert = (message: string) => {
+    setModalMessage(message);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setModalMessage('');
+  };
 
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...currentQuestion.options];
@@ -58,17 +68,16 @@ const QuizCreate: React.FC = () => {
 
   const handleAddQuestion = () => {
     if (!currentQuestion.prompt.trim()) {
-      alert("Please enter a question prompt.");
+      showAlert("Please enter a question prompt.");
       return;
     }
     if (currentQuestion.options.some(opt => !opt.trim())) {
-      alert("Please fill out all answer options.");
+      showAlert("Please fill out all answer options.");
       return;
     }
 
     setQuestions([...questions, currentQuestion]);
     
-    // Reset editor
     setCurrentQuestion({
       prompt: '',
       options: ['', ''],
@@ -76,25 +85,16 @@ const QuizCreate: React.FC = () => {
     });
   };
 
-  // --- Question Card Actions ---
-
   const handleDeleteQuestion = (indexToDelete: number) => {
     setQuestions(questions.filter((_, index) => index !== indexToDelete));
   };
 
   const handleEditQuestion = (indexToEdit: number) => {
-    // 1. Load the question back into the editor state
     const questionToEdit = questions[indexToEdit];
     setCurrentQuestion(questionToEdit);
-
-    // 2. Remove it from the list (so it can be re-added after editing)
     handleDeleteQuestion(indexToEdit);
-
-    // 3. Scroll to top so user sees the editor
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  // --- Main Navigation Handlers ---
 
   const handleBack = () => {
     navigate(-1); 
@@ -102,7 +102,7 @@ const QuizCreate: React.FC = () => {
 
   const handleDone = () => {
     if (!quizTitle.trim()) {
-      alert("Please enter a quiz title.");
+      showAlert("Please enter a title to your quiz.");
       return;
     }
     console.log("Saving quiz:", { title: quizTitle, questions });
@@ -112,7 +112,9 @@ const QuizCreate: React.FC = () => {
   return (
     <div className="quiz-create-container">
       
-      {/* Header */}
+      {/* 1. Added Heading for Accessibility/Tests */}
+      <h1>Create Quiz</h1>
+
       <div className="quiz-header">
         <div className="quiz-title-section">
           <input
@@ -132,7 +134,6 @@ const QuizCreate: React.FC = () => {
 
       <hr />
 
-      {/* Editor */}
       <div className="question-editor">
         <div className="form-group">
           <input
@@ -186,7 +187,6 @@ const QuizCreate: React.FC = () => {
         </div>
       </div>
 
-      {/* Preview List */}
       {questions.length > 0 && (
         <div className="questions-list-section">
           <h3>Questions ({questions.length})</h3>
@@ -228,6 +228,18 @@ const QuizCreate: React.FC = () => {
           </ul>
         </div>
       )}
+
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <p className="modal-text">{modalMessage}</p>
+            <button className="btn-modal-ok" onClick={closeModal}>
+              okie
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -1,6 +1,5 @@
 /* QuizCreate.css */
 
-/* --- Global Layout --- */
 body {
   background-color: #f8f7fc;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -11,6 +10,15 @@ body {
   max-width: 900px;
   margin: 0 auto;
   padding: 2rem;
+}
+
+/* --- ADDED HEADING STYLE --- */
+h1 {
+  color: #5e4b9e;
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-weight: 700;
 }
 
 /* --- Header Section --- */
@@ -235,7 +243,6 @@ hr {
   flex-direction: column;
 }
 
-/* Header within the card */
 .question-card-header {
   display: flex;
   justify-content: space-between;
@@ -247,17 +254,15 @@ hr {
 .question-card-header strong {
   color: #5e4b9e;
   font-size: 1.05rem;
-  word-break: break-word; /* Prevent long words breaking layout */
+  word-break: break-word;
 }
 
-/* Action Buttons Container */
 .question-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
 }
 
-/* Small Action Buttons */
 .btn-icon {
   width: 32px;
   height: 32px;
@@ -271,27 +276,19 @@ hr {
   transition: all 0.2s ease;
 }
 
-/* Blue Edit Button */
 .btn-edit {
   background-color: #e6f7ff;
   color: #1890ff;
   border: 1px solid #bce3ff;
 }
-.btn-edit:hover {
-  background-color: #1890ff;
-  color: white;
-}
+.btn-edit:hover { background-color: #1890ff; color: white; }
 
-/* Red Delete/Trash Button */
 .btn-delete {
   background-color: #fff1f0;
   color: #ff4d4f;
   border: 1px solid #ffccc7;
 }
-.btn-delete:hover {
-  background-color: #ff4d4f;
-  color: white;
-}
+.btn-delete:hover { background-color: #ff4d4f; color: white; }
 
 .question-options-list li {
   color: #666;
@@ -302,4 +299,61 @@ hr {
 .correct-answer {
   color: #52c41a !important;
   font-weight: 600;
+}
+
+/* --- Modal Alert --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-content {
+  background-color: #cd3b56; 
+  color: #333;
+  padding: 2.5rem 2rem;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(205, 59, 86, 0.4);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-text {
+  font-size: 1.1rem;
+  color: #2c2c2c;
+  margin-bottom: 2rem;
+  font-weight: 500;
+}
+
+.btn-modal-ok {
+  background-color: white;
+  color: #333;
+  border: none;
+  padding: 0.6rem 2.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: transform 0.1s ease;
+}
+
+.btn-modal-ok:hover {
+  transform: scale(1.05);
+  background-color: #f9f9f9;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
 }
