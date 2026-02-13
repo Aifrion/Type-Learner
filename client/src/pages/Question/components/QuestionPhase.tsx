@@ -21,6 +21,8 @@ interface QuestionPhaseProps {
   currentQuestionNumber: number;
   totalQuestions: number;
   onTimeUp?: () => void;
+  onAnswered?: (index: number) => void;
+  onContinue?: () => void;
 }
 
 export default function QuestionPhase({
@@ -28,12 +30,16 @@ export default function QuestionPhase({
   currentQuestionNumber,
   totalQuestions,
   onTimeUp,
+  onAnswered,
+  onContinue,
 }: QuestionPhaseProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [timerStopped, setTimerStopped] = useState(false);
+  const [timeUp, setTimeUp] = useState(false);
 
   const handleTimeUp = useCallback(() => {
     setTimerStopped(true);
+    setTimeUp(true);
     onTimeUp?.();
   }, [onTimeUp]);
 
@@ -41,16 +47,16 @@ export default function QuestionPhase({
     (index: number) => {
       if (selectedIndex !== null) return;
       setSelectedIndex(index);
-      if (index === question.correctIndex) {
-        setTimerStopped(true);
-      }
+      setTimerStopped(true);
+      onAnswered?.(index);
     },
-    [selectedIndex, question.correctIndex],
+    [selectedIndex, onAnswered],
   );
 
   const hasAnswered = selectedIndex !== null;
   const isCorrect = selectedIndex === question.correctIndex;
   const correctAnswerText = question.options[question.correctIndex]?.text ?? "";
+  const showContinue = Boolean(onContinue) && (hasAnswered || timeUp);
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -109,6 +115,18 @@ export default function QuestionPhase({
             {isCorrect
               ? "Correct!"
               : `Wrong — the correct answer is ${correctAnswerText}.`}
+          </div>
+        )}
+
+        {showContinue && (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={onContinue}
+              className="rounded-xl bg-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700"
+            >
+              Continue to typing
+            </button>
           </div>
         )}
       </div>

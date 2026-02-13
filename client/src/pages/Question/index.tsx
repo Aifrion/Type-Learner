@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
 import QuestionPhase from "./components/QuestionPhase";
@@ -23,10 +23,13 @@ function toMultipleChoiceQuestion(
 
 export default function Question() {
   const { code } = useParams<{ code: string }>();
+  const navigate = useNavigate();
   const [questionSets, setQuestionSets] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const autoAdvanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasNavigatedRef = useRef(false);
 
   useEffect(() => {
     async function fetchQuestionSets() {
@@ -49,13 +52,42 @@ export default function Question() {
     fetchQuestionSets();
   }, []);
 
+  const advanceToTyping = useCallback(() => {
+    if (hasNavigatedRef.current) return;
+    hasNavigatedRef.current = true;
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+    }
+    const typingCode = code ?? "practice";
+    navigate(`/typing/${typingCode}`);
+  }, [navigate, code]);
+
+  const scheduleAdvance = useCallback(() => {
+    if (autoAdvanceTimeoutRef.current) return;
+    autoAdvanceTimeoutRef.current = setTimeout(() => {
+      advanceToTyping();
+    }, 1500);
+  }, [advanceToTyping]);
+
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleTimeUp = () => {
     console.log("Time up. Game code:", code);
-    const set = questionSets[0];
-    const questions = set?.questions ?? [];
-    if (currentIndex + 1 < questions.length) {
-      setCurrentIndex((i) => i + 1);
-    }
+    scheduleAdvance();
+  };
+
+  const handleAnswered = () => {
+    scheduleAdvance();
+  };
+
+  const handleContinue = () => {
+    advanceToTyping();
   };
 
   if (loading) {
@@ -100,6 +132,8 @@ export default function Question() {
       currentQuestionNumber={currentIndex + 1}
       totalQuestions={questions.length}
       onTimeUp={handleTimeUp}
+      onAnswered={handleAnswered}
+      onContinue={handleContinue}
     />
   );
 }
