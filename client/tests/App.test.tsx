@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { vi } from "vitest";
 import App from "@/App";
+
+vi.mock("@/firebase", () => ({
+  auth: { kind: "auth" },
+  db: { kind: "db" },
+}));
 
 const renderWithRoute = (initialEntry: string) =>
   render(
