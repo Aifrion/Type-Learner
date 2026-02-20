@@ -27,6 +27,17 @@ export interface TypingStats {
   totalChars: number;
 }
 
+// Typing session (stored in sessionStorage)
+export interface TypingSession {
+  code: string;
+  question: Question;
+  gameState: {
+    currentQuestion: number;
+    totalQuestions: number;
+  };
+  startedAt: number;
+}
+
 // WebSocket event types
 export interface WSMessage {
   type: string;
