@@ -40,6 +40,7 @@ export default function HostRegister() {
         email: credential.user.email,
         name: name || null,
         school: school || null,
+        questionSetIds: [],
         createdAt: serverTimestamp(),
       });
       navigate("/");

@@ -154,6 +154,7 @@ describe("HostRegister", () => {
         email: "teacher@school.edu",
         name: "Ms. Ada",
         school: "Lincoln High",
+        questionSetIds: [],
         createdAt: "SERVER_TIME",
       })
     );
