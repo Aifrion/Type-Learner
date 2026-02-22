@@ -42,6 +42,8 @@ const JoinPage = () => {
   const updateDigits = (startIndex: number, value: string) => {
     const firstEmpty = digits.findIndex((d) => !d);
     if (firstEmpty !== -1 && startIndex > firstEmpty) {
+      // Re-render with existing digits to overwrite the typed character.
+      setDigits([...digits]);
       focusInput(firstEmpty);
       return;
     }

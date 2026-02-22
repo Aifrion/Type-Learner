@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import JoinPage from "@/pages/Join";
@@ -49,8 +49,8 @@ describe("JoinPage", () => {
     await userEvent.click(inputs[2]);
     await userEvent.type(inputs[2], "B");
 
-    expect(inputs[0]).toHaveValue("");
-    expect(inputs[2]).toHaveValue("");
+    await waitFor(() => expect(inputs[0]).toHaveValue(""));
+    await waitFor(() => expect(inputs[2]).toHaveValue(""));
   });
 
   it("pastes alphanumeric code and uppercases it", async () => {
