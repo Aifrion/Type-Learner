@@ -21,7 +21,7 @@ export default function HostLogin() {
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/");
+      navigate("/host/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign in.");
     } finally {

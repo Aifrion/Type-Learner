@@ -43,7 +43,7 @@ export default function HostRegister() {
         questionSetIds: [],
         createdAt: serverTimestamp(),
       });
-      navigate("/");
+      navigate("/host/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to register.");
     } finally {

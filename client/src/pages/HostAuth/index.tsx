@@ -1,8 +1,18 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/firebase";
 import BackButton from "./components/BackButton";
 
 export default function HostAuth() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) navigate("/host/dashboard", { replace: true });
+    });
+    return () => unsubscribe();
+  }, [navigate]);
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-purple-100 px-4 pt-16">
