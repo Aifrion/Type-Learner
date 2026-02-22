@@ -55,7 +55,7 @@ describe("HostLogin", () => {
     expect(signInMock).not.toHaveBeenCalled();
   });
 
-  it("signs in and navigates home on success", async () => {
+  it("signs in and navigates to dashboard on success", async () => {
     signInMock.mockResolvedValue({} as never);
 
     render(<HostLogin />);
@@ -75,7 +75,9 @@ describe("HostLogin", () => {
         "secret"
       )
     );
-    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/"));
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith("/host/dashboard")
+    );
   });
 
   it("shows an error message when sign-in fails", async () => {
@@ -108,7 +110,7 @@ describe("HostRegister", () => {
     expect(createUserMock).not.toHaveBeenCalled();
   });
 
-  it("creates the teacher record and navigates home on success", async () => {
+  it("creates the teacher record and navigates to dashboard on success", async () => {
     const user = { uid: "uid-123", email: "teacher@school.edu" };
     createUserMock.mockResolvedValue({ user } as never);
     updateProfileMock.mockResolvedValue(undefined);
@@ -158,7 +160,9 @@ describe("HostRegister", () => {
         createdAt: "SERVER_TIME",
       })
     );
-    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/"));
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith("/host/dashboard")
+    );
   });
 
   it("shows an error message when registration fails", async () => {
