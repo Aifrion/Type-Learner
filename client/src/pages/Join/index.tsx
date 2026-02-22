@@ -1,6 +1,7 @@
 import type { ClipboardEvent, FormEvent, KeyboardEvent } from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { checkRoomExists } from '@/services/api';
 
 const CODE_LENGTH = 6;
 
@@ -17,22 +18,35 @@ const JoinPage = () => {
     requestAnimationFrame(() => inputsRef.current[index]?.focus());
   };
 
-  const handleSubmit = (event?: FormEvent) => {
+  const handleSubmit = async (event?: FormEvent) => {
     event?.preventDefault();
     if (!isComplete) {
       setError('Please enter the full 6-digit code.');
       return;
     }
-    if (code !== '000000') {
-      setError('exists');
-      return;
-    }
     setError(null);
-    navigate(`/lobby/${code}`);
+
+    try {
+      const result = await checkRoomExists(code);
+      if (!result.exists) {
+        setError('exists');
+        return;
+      }
+      navigate(`/lobby/${code}`);
+    } catch (err) {
+      console.error('Failed to validate room code', err);
+      setError('network');
+    }
   };
 
   const updateDigits = (startIndex: number, value: string) => {
-    const cleaned = value.replace(/\D/g, '');
+    const firstEmpty = digits.findIndex((d) => !d);
+    if (firstEmpty !== -1 && startIndex > firstEmpty) {
+      focusInput(firstEmpty);
+      return;
+    }
+
+    const cleaned = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     if (!cleaned) {
       const cleared = [...digits];
       cleared[startIndex] = '';
@@ -76,7 +90,13 @@ const JoinPage = () => {
 
   const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
     event.preventDefault();
-    const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, CODE_LENGTH);
+    const pastedRaw =
+      event.clipboardData.getData('text') ||
+      event.clipboardData.getData('text/plain');
+    const pasted = pastedRaw
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toUpperCase()
+      .slice(0, CODE_LENGTH);
     if (!pasted) return;
 
     const nextDigits = Array(CODE_LENGTH).fill('');
@@ -118,19 +138,25 @@ const JoinPage = () => {
                   ref={(el) => {
                     inputsRef.current[index] = el;
                   }}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
+                  inputMode="text"
+                  pattern="[A-Za-z0-9]*"
                   maxLength={1}
                   value={digit}
+                  onFocus={() => {
+                    const firstEmpty = digits.findIndex((d) => !d);
+                    if (firstEmpty !== -1 && index > firstEmpty) {
+                      focusInput(firstEmpty);
+                    }
+                  }}
                   onChange={(event) => updateDigits(index, event.target.value)}
                   onKeyDown={(event) => handleKeyDown(index, event)}
                   onPaste={handlePaste}
-                  className={`w-12 h-14 md:w-14 md:h-16 rounded-xl border-2 text-center text-2xl font-semibold tracking-wide shadow-sm transition focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-500 bg-white ${
+                  className={`w-12 h-14 md:w-14 md:h-16 rounded-xl border-2 text-center text-2xl font-semibold tracking-wide uppercase shadow-sm transition focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-500 bg-white ${
                     error && error !== 'network'
                       ? 'border-red-200 text-red-600 focus:ring-red-200 focus:border-red-400'
                       : 'border-purple-100 text-slate-800'
                   }`}
-                  aria-label={`Code digit ${index + 1}`}
+                  aria-label={`Code character ${index + 1}`}
                 />
               ))}
             </div>
