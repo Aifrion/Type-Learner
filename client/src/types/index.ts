@@ -38,6 +38,41 @@ export interface TypingSession {
   startedAt: number;
 }
 
+// Room sync and leaderboard types
+export type RoomPhase =
+  | "lobby"
+  | "multiple_choice"
+  | "typing"
+  | "scoreboard"
+  | "completed";
+
+export interface RoomPlayer {
+  socketId: string;
+  nickname: string;
+  score: number;
+  hasSubmitted: boolean;
+}
+
+export interface RoomState {
+  code: string;
+  phase: RoomPhase;
+  currentQuestionIndex: number;
+  players: RoomPlayer[];
+}
+
+export interface LeaderboardEntry {
+  socketId: string;
+  nickname: string;
+  score: number;
+  rank: number;
+}
+
+export interface LeaderboardUpdate {
+  code: string;
+  phase: RoomPhase;
+  leaderboard: LeaderboardEntry[];
+}
+
 // WebSocket event types
 export interface WSMessage {
   type: string;

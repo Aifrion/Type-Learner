@@ -6,6 +6,7 @@ import {
   TypingRecord,
 } from "../types/game";
 import { generateRoomCode } from "../utils/codeGenerator";
+import { calculateScore } from "../utils/score";
 
 interface CreateGameData {
   title: string;
@@ -156,6 +157,153 @@ export function handleCreateGame(
   rooms.set(code, room);
   socket.join(code);
   socket.emit("game-created", { code });
+  socket.emit("room-state", toRoomState(room));
+}
+
+export function handleJoinGame(
+  socket: Socket,
+  data: JoinGameData,
+  rooms: Map<string, GameRoom>,
+  io: IoLike
+): void {
+  const room = rooms.get(data.code);
+
+  if (!room) {
+    socket.emit("join-error", { message: "Room not found." });
+    return;
+  }
+
+  if (room.phase !== "lobby") {
+    socket.emit("join-error", { message: "Room is no longer accepting players." });
+    return;
+  }
+
+  const nickname = data.nickname.trim();
+  if (!nickname) {
+    socket.emit("join-error", { message: "Nickname is required." });
+    return;
+  }
+
+  const duplicate = [...room.players.values()].some(
+    (player) => player.nickname.toLowerCase() === nickname.toLowerCase()
+  );
+  if (duplicate) {
+    socket.emit("join-error", { message: "Nickname already taken." });
+    return;
+  }
+
+  room.addPlayer({
+    socketId: socket.id,
+    nickname,
+    score: 0,
+    hasSubmitted: false,
+  });
+
+  socket.join(room.code);
+  socket.emit("joined-game", { code: room.code, nickname, phase: room.phase });
+  emitRoomState(io, room);
+}
+
+export function handleStartGame(
+  socket: Socket,
+  data: StartGameData,
+  rooms: Map<string, GameRoom>,
+  io: IoLike
+): void {
+  const room = rooms.get(data.code);
+
+  if (!room) {
+    socket.emit("start-game-error", { message: "Room not found." });
+    return;
+  }
+
+  if (room.hostSocketId !== socket.id) {
+    socket.emit("start-game-error", { message: "Only the host can start the game." });
+    return;
+  }
+
+  if (room.phase !== "lobby") {
+    socket.emit("start-game-error", { message: "Game has already started." });
+    return;
+  }
+
+  room.phase = "multiple_choice";
+  io.to(room.code).emit("game-started", { code: room.code, phase: room.phase });
+  emitRoomState(io, room);
+}
+
+export function handleSubmitScore(
+  socket: Socket,
+  data: SubmitScoreData,
+  rooms: Map<string, GameRoom>,
+  io: IoLike,
+  persistRoomScores?: PersistRoomScores
+): void {
+  const room = rooms.get(data.code);
+
+  if (!room) {
+    socket.emit("score-error", { message: "Room not found." });
+    return;
+  }
+
+  const player = room.players.get(socket.id);
+  if (!player) {
+    socket.emit("score-error", { message: "Player not found in room." });
+    return;
+  }
+
+  if (player.hasSubmitted) {
+    socket.emit("score-submitted", {
+      accepted: false,
+      reason: "already-submitted",
+    });
+    return;
+  }
+
+  const earnedScore = calculateScore({
+    isCorrect: data.isCorrect,
+    typingSpeed: data.typingSpeed,
+    accuracy: data.accuracy,
+  });
+
+  player.score += earnedScore;
+  player.hasSubmitted = true;
+
+  const allSubmitted =
+    room.players.size > 0 && [...room.players.values()].every((entry) => entry.hasSubmitted);
+
+  if (allSubmitted) {
+    room.phase = "scoreboard";
+    room.players.forEach((entry) => {
+      entry.hasSubmitted = false;
+    });
+  }
+
+  const leaderboard = getLeaderboard(room);
+
+  socket.emit("score-submitted", {
+    accepted: true,
+    earnedScore,
+    totalScore: player.score,
+  });
+
+  io.to(room.code).emit("leaderboard-updated", {
+    code: room.code,
+    phase: room.phase,
+    leaderboard,
+  });
+
+  if (persistRoomScores) {
+    void Promise.resolve(persistRoomScores(room.code, leaderboard)).catch(() => {
+      // Persistence failures should not block gameplay event flow.
+    });
+  }
+
+  emitRoomState(io, room);
+
+  if (allSubmitted) {
+    io.to(room.code).emit("phase-changed", { phase: room.phase });
+  }
 }
 
 export function handleJoinGame(

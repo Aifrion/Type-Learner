@@ -13,6 +13,7 @@ import {
   handleRequestRoomState,
   handleDisconnect,
 } from "./handlers/roomHandlers";
+import { persistRoomLeaderboard } from "./services/roomPersistence";
 
 export function setupServer() {
   const app = express();
