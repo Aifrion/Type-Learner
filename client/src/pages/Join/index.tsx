@@ -13,6 +13,7 @@ const JoinPage = () => {
 
   const code = useMemo(() => digits.join(''), [digits]);
   const isComplete = code.length === CODE_LENGTH && digits.every(Boolean);
+  const firstEmptyIndex = useMemo(() => digits.findIndex((d) => !d), [digits]);
 
   const focusInput = (index: number) => {
     requestAnimationFrame(() => inputsRef.current[index]?.focus());
@@ -39,12 +40,17 @@ const JoinPage = () => {
     }
   };
 
-  const updateDigits = (startIndex: number, value: string) => {
-    const firstEmpty = digits.findIndex((d) => !d);
-    if (firstEmpty !== -1 && startIndex > firstEmpty) {
-      // Re-render with existing digits to overwrite the typed character.
-      setDigits([...digits]);
-      focusInput(firstEmpty);
+  const updateDigits = (
+    startIndex: number,
+    value: string,
+    event?: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (firstEmptyIndex !== -1 && startIndex > firstEmptyIndex) {
+      if (event?.target) {
+        event.target.value = digits[startIndex] ?? '';
+      }
+      setDigits([...digits]); // ensure re-render to sync DOM value
+      focusInput(firstEmptyIndex);
       return;
     }
 
@@ -76,6 +82,13 @@ const JoinPage = () => {
   };
 
   const handleKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
+    // Block typing into boxes past the first empty slot.
+    if (firstEmptyIndex !== -1 && index > firstEmptyIndex && event.key.length === 1) {
+      event.preventDefault();
+      focusInput(firstEmptyIndex);
+      return;
+    }
+
     if (event.key === 'Backspace' && !digits[index] && index > 0) {
       focusInput(index - 1);
     }
@@ -143,14 +156,14 @@ const JoinPage = () => {
                   inputMode="text"
                   pattern="[A-Za-z0-9]*"
                   maxLength={1}
+                  readOnly={firstEmptyIndex !== -1 && index > firstEmptyIndex}
                   value={digit}
                   onFocus={() => {
-                    const firstEmpty = digits.findIndex((d) => !d);
-                    if (firstEmpty !== -1 && index > firstEmpty) {
-                      focusInput(firstEmpty);
+                    if (firstEmptyIndex !== -1 && index > firstEmptyIndex) {
+                      focusInput(firstEmptyIndex);
                     }
                   }}
-                  onChange={(event) => updateDigits(index, event.target.value)}
+                  onChange={(event) => updateDigits(index, event.target.value, event)}
                   onKeyDown={(event) => handleKeyDown(index, event)}
                   onPaste={handlePaste}
                   className={`w-12 h-14 md:w-14 md:h-16 rounded-xl border-2 text-center text-2xl font-semibold tracking-wide uppercase shadow-sm transition focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-500 bg-white ${
