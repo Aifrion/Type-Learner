@@ -43,10 +43,11 @@ export function setupServer() {
   return { httpServer, io };
 }
 
-const { httpServer } = setupServer();
+if (require.main === module) {
+  const { httpServer } = setupServer();
+  const PORT = Number(process.env.PORT) || 8080;
 
-const PORT = Number(process.env.PORT) || 8080;
-
-httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  httpServer.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
