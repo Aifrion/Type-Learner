@@ -22,10 +22,10 @@ describe("App routing", () => {
     expect(screen.getByText(/lobby: abcd/i)).toBeInTheDocument();
   });
 
-  it("renders game page with code", () => {
-    renderWithRoute("/typing/42");
+  it("renders game page with code", async () => {
+    renderWithRoute("/typing/practice");
     expect(
-      screen.getByText(
+      await screen.findByText(
         /What gas do plants absorb from the atmosphere during photosynthesis\?/i
       )
     ).toBeInTheDocument();

@@ -23,6 +23,7 @@ interface QuestionPhaseProps {
   onTimeUp?: () => void;
   onAnswered?: (index: number) => void;
   onContinue?: () => void;
+  continueLabel?: string;
 }
 
 export default function QuestionPhase({
@@ -32,6 +33,7 @@ export default function QuestionPhase({
   onTimeUp,
   onAnswered,
   onContinue,
+  continueLabel = "Continue to typing",
 }: QuestionPhaseProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [timerStopped, setTimerStopped] = useState(false);
@@ -125,7 +127,7 @@ export default function QuestionPhase({
               onClick={onContinue}
               className="rounded-xl bg-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700"
             >
-              Continue to typing
+              {continueLabel}
             </button>
           </div>
         )}

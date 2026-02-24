@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const mockNavigate = vi.fn();
 
 vi.mock("react-router-dom", async (orig) => {
-  const actual = await orig();
+  const actual = (await orig()) as Record<string, unknown>;
   return {
     ...actual,
     useParams: () => ({ code: "ROOM" }),
@@ -30,14 +30,14 @@ const mockData = [
     ],
   },
 ];
-const mockGetDocs = vi.fn();
+const mockGetDoc = vi.fn();
 
 vi.mock("firebase/firestore", async (orig) => {
-  const actual = await orig();
+  const actual = (await orig()) as Record<string, unknown>;
   return {
     ...actual,
-    collection: vi.fn(() => "collectionRef"),
-    getDocs: (...args: unknown[]) => mockGetDocs(...args),
+    doc: vi.fn(() => "docRef"),
+    getDoc: (...args: unknown[]) => mockGetDoc(...args),
   };
 });
 
@@ -71,7 +71,7 @@ function renderQuestion() {
 describe("Question page", () => {
   beforeEach(() => {
     mockNavigate.mockReset();
-    mockGetDocs.mockReset();
+    mockGetDoc.mockReset();
   });
 
   afterEach(() => {
@@ -79,8 +79,10 @@ describe("Question page", () => {
   });
 
   it("shows loading then renders first question", async () => {
-    mockGetDocs.mockResolvedValueOnce({
-      docs: mockData.map((d) => ({ id: d.id, data: () => ({ questions: d.questions }) })),
+    mockGetDoc.mockResolvedValueOnce({
+      id: "ROOM",
+      exists: () => true,
+      data: () => ({ questions: mockData[0].questions }),
     });
 
     renderQuestion();
@@ -95,7 +97,7 @@ describe("Question page", () => {
   });
 
   it("renders error state when fetch fails", async () => {
-    mockGetDocs.mockRejectedValueOnce(new Error("boom"));
+    mockGetDoc.mockRejectedValueOnce(new Error("boom"));
 
     renderQuestion();
 
@@ -104,36 +106,84 @@ describe("Question page", () => {
     });
   });
 
-  it("auto navigates to typing on answer or time up", async () => {
-    mockGetDocs.mockResolvedValueOnce({
-      docs: mockData.map((d) => ({ id: d.id, data: () => ({ questions: d.questions }) })),
+  it("advances through questions and navigates to typing after the last one", async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      id: "ROOM",
+      exists: () => true,
+      data: () => ({ questions: mockData[0].questions }),
     });
 
     renderQuestion();
 
     await waitFor(() => screen.getByText(/Capital of France/i));
 
-    // Answer the question (first option)
     await act(async () => {
       screen.getByRole("button", { name: /option 1: paris/i }).click();
     });
+    await act(async () => {
+      screen.getByRole("button", { name: /next question/i }).click();
+    });
+
+    expect(screen.getByText(/2\+2\?/i)).toBeInTheDocument();
+    expect(screen.getByText("Question 2 of 2")).toBeInTheDocument();
+
+    await act(async () => {
+      screen.getByRole("button", { name: /option 2: 4/i }).click();
+    });
+    await act(async () => {
+      screen.getByRole("button", { name: /continue to typing/i }).click();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith("/typing/ROOM?q=1");
+  });
+
+  it("uses a safe fallback index when correctAnswer is out of bounds", async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      id: "ROOM",
+      exists: () => true,
+      data: () => ({
+        questions: [
+          {
+            question: "Pick A",
+            answers: ["A", "B"],
+            correctAnswer: 99,
+          },
+        ],
+      }),
+    });
+
+    renderQuestion();
 
     await waitFor(
       () => {
-        expect(mockNavigate).toHaveBeenCalledWith("/typing/ROOM");
+        expect(screen.getByText(/Pick A/i)).toBeInTheDocument();
       },
-      { timeout: 2500 },
     );
+
+    await act(async () => {
+      screen.getByRole("button", { name: /option 2: b/i }).click();
+    });
+
+    expect(screen.getByText(/the correct answer is A/i)).toBeInTheDocument();
   });
 
-  it("auto navigates to typing when time expires", async () => {
-    mockGetDocs.mockResolvedValueOnce({
-      docs: mockData.map((d) => ({ id: d.id, data: () => ({ questions: d.questions }) })),
+  it("auto navigates to typing when final question time expires", async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      id: "ROOM",
+      exists: () => true,
+      data: () => ({ questions: mockData[0].questions }),
     });
 
     renderQuestion();
 
     await screen.findByText(/Capital of France/i);
+
+    await act(async () => {
+      screen.getByRole("button", { name: /option 1: paris/i }).click();
+    });
+    await act(async () => {
+      screen.getByRole("button", { name: /next question/i }).click();
+    });
 
     await act(async () => {
       screen.getByText("Mock Timer").click();
@@ -143,26 +193,7 @@ describe("Question page", () => {
       continueBtn.click();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith("/typing/ROOM");
+    expect(mockNavigate).toHaveBeenCalledWith("/typing/ROOM?q=1");
   });
 
-  it("navigates immediately when continue button is clicked", async () => {
-    mockGetDocs.mockResolvedValueOnce({
-      docs: mockData.map((d) => ({ id: d.id, data: () => ({ questions: d.questions }) })),
-    });
-
-    renderQuestion();
-
-    await waitFor(() => screen.getByText(/Capital of France/i));
-
-    await act(async () => {
-      screen.getByRole("button", { name: /option 1: paris/i }).click();
-    });
-    const continueBtn = await screen.findByRole("button", { name: /continue to typing/i });
-    await act(async () => {
-      continueBtn.click();
-    });
-
-    expect(mockNavigate).toHaveBeenCalledWith("/typing/ROOM");
-  });
 });
