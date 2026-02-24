@@ -63,7 +63,7 @@ describe("Game page", () => {
     getTypingSessionMock.mockReturnValue(null);
   });
 
-  it("renders TypingPhase with mock question data", () => {
+  it("renders TypingPhase with mock question data", async () => {
     render(
       <MemoryRouter initialEntries={["/typing/practice"]}>
         <Routes>
@@ -81,9 +81,9 @@ describe("Game page", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Q4/10")).toBeInTheDocument();
     expect(saveTypingSessionMock).toHaveBeenCalledWith(
-      "ROOM",
+      "practice",
       expect.objectContaining({
-        code: "ROOM",
+        code: "practice",
         question: expect.objectContaining({
           answer:
             "Plants absorb carbon dioxide from the atmosphere during photosynthesis.",

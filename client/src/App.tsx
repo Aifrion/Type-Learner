@@ -5,6 +5,7 @@ import HostLogin from '@/pages/HostLogin';
 import HostRegister from '@/pages/HostRegister';
 import HostDashboard from '@/pages/HostDashboard';
 import Lobby from '@/pages/Lobby';
+import Question from '@/pages/Question';
 import Game from '@/pages/Game';
 import Results from '@/pages/Results';
 import QuizCreate from '@/pages/QuizCreate';
