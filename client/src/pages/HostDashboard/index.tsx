@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import { auth, db } from "@/firebase";
 import BackButton from "@/pages/HostAuth/components/BackButton";
 
@@ -40,6 +47,18 @@ export default function HostDashboard() {
   const [loading, setLoading] = useState(true);
   const [sets, setSets] = useState<QuestionSetSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const handleDelete = async (set: QuestionSetSummary) => {
+    if (set.id === "example" || set.isExample) return;
+    if (!window.confirm(`Delete "${set.title ?? "Untitled"}"? This cannot be undone.`)) return;
+    setError(null);
+    try {
+      await deleteDoc(doc(db, "questionSets", set.id));
+      setSets((prev) => prev.filter((s) => s.id !== set.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete question set.");
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -129,6 +148,15 @@ export default function HostDashboard() {
                   >
                     Edit
                   </button>
+                  {s.id !== "example" && !s.isExample && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(s)}
+                      className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {}}

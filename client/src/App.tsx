@@ -4,6 +4,7 @@ import HostAuth from '@/pages/HostAuth';
 import HostLogin from '@/pages/HostLogin';
 import HostRegister from '@/pages/HostRegister';
 import HostDashboard from '@/pages/HostDashboard';
+import Join from '@/pages/Join';
 import Lobby from '@/pages/Lobby';
 import Question from '@/pages/Question';
 import Game from '@/pages/Game';
@@ -18,6 +19,7 @@ function App() {
       <Route path="/host-login" element={<HostLogin />} />
       <Route path="/host-registration" element={<HostRegister />} />
       <Route path="/host/dashboard" element={<HostDashboard />} />
+      <Route path="/join" element={<Join />} />
       <Route path="/lobby/:code" element={<Lobby />} />
       <Route path="/question/:code" element={<Question />} />
       <Route path="/typing/:code" element={<Game />} />
