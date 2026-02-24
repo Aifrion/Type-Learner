@@ -11,6 +11,7 @@ import {
   handleSubmitMultipleChoice,
   handleSubmitTyping,
   handleAdvancePhase,
+  handleDisconnect,
 } from "./handlers/roomHandlers";
 
 export function setupServer() {
@@ -59,7 +60,7 @@ export function setupServer() {
     });
 
     socket.on("disconnect", () => {
-      handleHostDisconnect(socket.id, rooms, io);
+      handleDisconnect(socket.id, rooms, io);
     });
   });
 
@@ -68,7 +69,7 @@ export function setupServer() {
 
 if (require.main === module) {
   const { httpServer } = setupServer();
-  const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
+  const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
   httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

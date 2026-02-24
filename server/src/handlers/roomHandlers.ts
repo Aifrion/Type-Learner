@@ -292,3 +292,39 @@ export function handleHostDisconnect(
     }
   }
 }
+
+export function handleDisconnect(
+  socketId: string,
+  rooms: Map<string, GameRoom>,
+  io?: IOServer
+): void {
+  for (const [code, room] of rooms) {
+    // Host disconnect retains previous behavior
+    if (room.hostSocketId === socketId) {
+      handleHostDisconnect(socketId, rooms, io);
+      return;
+    }
+
+    // Remove regular player
+    if (room.players.has(socketId)) {
+      room.players.delete(socketId);
+
+      // Clean any submissions from this player across questions
+      for (const submissions of room.mcSubmissions.values()) {
+        submissions.delete(socketId);
+      }
+      for (const submissions of room.typingSubmissions.values()) {
+        submissions.delete(socketId);
+      }
+
+      // If room becomes empty, remove it; else broadcast updated state
+      if (room.players.size === 0 && io) {
+        room.clearTimer();
+        rooms.delete(code);
+      } else if (io) {
+        broadcastState(io, room);
+      }
+      return;
+    }
+  }
+}

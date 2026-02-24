@@ -33,6 +33,11 @@ const JoinPage = () => {
         setError('exists');
         return;
       }
+      // Persist nickname for lobby/socket join
+      const nick =
+        sessionStorage.getItem('nickname') ||
+        `Player-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      sessionStorage.setItem('nickname', nick);
       navigate(`/lobby/${code}`);
     } catch (err) {
       console.error('Failed to validate room code', err);

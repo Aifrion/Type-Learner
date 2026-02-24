@@ -10,7 +10,7 @@ type RoomState = {
 };
 
 export default function DebugRoom() {
-  const [serverUrl, setServerUrl] = useState("http://localhost:3000");
+  const [serverUrl, setServerUrl] = useState("http://localhost:8080");
   const [socket, setSocket] = useState<Socket | null>(null);
   const [roomCode, setRoomCode] = useState("");
   const [nickname, setNickname] = useState("Player");
