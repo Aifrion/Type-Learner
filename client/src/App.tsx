@@ -9,6 +9,7 @@ import Lobby from '@/pages/Lobby';
 import Game from '@/pages/Game';
 import Results from '@/pages/Results';
 import QuizCreate from '@/pages/QuizCreate';
+import DebugRoom from '@/pages/DebugRoom';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
       <Route path="/typing/:code" element={<Game />} />
       <Route path="/results/:code" element={<Results />} />
       <Route path="/create" element={<QuizCreate />} />
+      <Route path="/debug-room" element={<DebugRoom />} />
     </Routes>
   );
 }

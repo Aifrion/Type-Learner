@@ -27,7 +27,8 @@ describe("App routing", () => {
 
   it("renders lobby page with code", () => {
     renderWithRoute("/lobby/ABCD");
-    expect(screen.getByText(/lobby: abcd/i)).toBeInTheDocument();
+    expect(screen.getByText(/lobby/i, { selector: 'p' })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /ABCD/i })).toBeInTheDocument();
   });
 
   it("renders game page with code", () => {

@@ -26,6 +26,17 @@ export interface Player {
   hasSubmitted: boolean; // has player submitted an answer for the multiple choice
 }
 
+export interface AnswerRecord {
+  answerIndex: number;
+  submittedAt: number;
+}
+
+export interface TypingRecord {
+  wpm: number;
+  accuracy: number;
+  submittedAt: number;
+}
+
 export class GameRoom {
   code: string;
   hostSocketId: string;
@@ -35,6 +46,9 @@ export class GameRoom {
   currentQuestionIndex: number;
   timerStartedAt: number | null;
   activeTimer: ReturnType<typeof setTimeout> | null;
+  mcSubmissions: Map<number, Map<string, AnswerRecord>>; // questionIndex -> player socket -> answer
+  typingSubmissions: Map<number, Map<string, TypingRecord>>; // questionIndex -> player socket -> stats
+  phaseDurationMs: number; // current phase duration
 
   constructor(code: string, hostSocketId: string, questions: Question[]) {
     this.code = code;
@@ -45,6 +59,9 @@ export class GameRoom {
     this.currentQuestionIndex = 0;
     this.timerStartedAt = null;
     this.activeTimer = null;
+    this.mcSubmissions = new Map();
+    this.typingSubmissions = new Map();
+    this.phaseDurationMs = 0;
   }
 
   addPlayer(player: Player): void {
