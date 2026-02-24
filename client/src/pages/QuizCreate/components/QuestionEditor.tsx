@@ -1,6 +1,6 @@
 // client/src/pages/QuizCreate/components/QuestionEditor.tsx
 import React from 'react';
-import { QuizQuestion } from '@/types'; // Using your path alias!
+import { QuizQuestion } from '@/types';
 
 interface QuestionEditorProps {
   currentQuestion: QuizQuestion;
