@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { vi } from "vitest";
 import App from "@/App";
+
+vi.mock("@/firebase", () => ({
+  auth: { kind: "auth" },
+  db: { kind: "db" },
+}));
 
 const renderWithRoute = (initialEntry: string) =>
   render(
@@ -13,7 +19,9 @@ describe("App routing", () => {
   it("shows the home page at root", () => {
     renderWithRoute("/");
     expect(
-      screen.getByRole("heading", { name: /type learner/i })
+      screen.getByRole("heading", {
+        name: /build speed and confidence with every session/i,
+      })
     ).toBeInTheDocument();
   });
 

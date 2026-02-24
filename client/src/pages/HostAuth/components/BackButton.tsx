@@ -5,10 +5,12 @@ export default function BackButton() {
 
   return (
     <button
-      onClick={() => navigate("/")}
-      className="mb-6 flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800 cursor-pointer"
+      type="button"
+      onClick={() => navigate(-1)}
+      className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-purple-600 transition hover:text-purple-800"
     >
-      &larr; Back
+      <span aria-hidden>{"<-"}</span>
+      Back
     </button>
   );
 }
