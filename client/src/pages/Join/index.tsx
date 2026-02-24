@@ -55,7 +55,6 @@ const JoinPage = () => {
         event.target.value = digits[startIndex] ?? '';
       }
       setDigits([...digits]); // ensure re-render to sync DOM value
-      focusInput(firstEmptyIndex);
       return;
     }
 
@@ -90,7 +89,6 @@ const JoinPage = () => {
     // Block typing into boxes past the first empty slot.
     if (firstEmptyIndex !== -1 && index > firstEmptyIndex && event.key.length === 1) {
       event.preventDefault();
-      focusInput(firstEmptyIndex);
       return;
     }
 
@@ -161,13 +159,7 @@ const JoinPage = () => {
                   inputMode="text"
                   pattern="[A-Za-z0-9]*"
                   maxLength={1}
-                  readOnly={firstEmptyIndex !== -1 && index > firstEmptyIndex}
                   value={digit}
-                  onFocus={() => {
-                    if (firstEmptyIndex !== -1 && index > firstEmptyIndex) {
-                      focusInput(firstEmptyIndex);
-                    }
-                  }}
                   onChange={(event) => updateDigits(index, event.target.value, event)}
                   onKeyDown={(event) => handleKeyDown(index, event)}
                   onPaste={handlePaste}
