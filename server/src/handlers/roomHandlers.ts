@@ -2,6 +2,8 @@ import { GameRoom, Question } from "../types/game";
 import { generateRoomCode } from "../utils/codeGenerator";
 
 interface CreateGameData {
+  title: string;
+  ownerId: string;
   questions: Question[];
 }
 
@@ -18,7 +20,7 @@ export function handleCreateGame(
 ): void {
   const code = generateRoomCode(rooms);
 
-  const room = new GameRoom(code, socket.id, data.questions);
+  const room = new GameRoom(code, socket.id, data.title, data.ownerId, data.questions);
 
   rooms.set(code, room);
   socket.join(code);

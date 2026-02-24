@@ -8,32 +8,29 @@ import { Question, Player, GameRoom, Phase } from "../../src/types/game";
 
 export const SAMPLE_QUESTIONS: Question[] = [
   {
-    text: "What does HTML stand for?",
+    prompt: "What does HTML stand for?",
     options: [
       "Hyper Text Markup Language",
       "Hot Mail",
       "How To Make Lasagna",
       "Hyper Tool Multi Language",
     ],
-    correctAnswerIndex: 0,
-    correctAnswerText: "Hyper Text Markup Language",
+    correctOptionIndex: 0,
   },
   {
-    text: "Which keyword declares a constant in JavaScript?",
+    prompt: "Which keyword declares a constant in JavaScript?",
     options: ["var", "let", "const", "fixed"],
-    correctAnswerIndex: 2,
-    correctAnswerText: "const",
+    correctOptionIndex: 2,
   },
   {
-    text: "What does CSS stand for?",
+    prompt: "What does CSS stand for?",
     options: [
       "Computer Style Sheets",
       "Cascading Style Sheets",
       "Creative Style System",
       "Colorful Style Sheets",
     ],
-    correctAnswerIndex: 1,
-    correctAnswerText: "Cascading Style Sheets",
+    correctOptionIndex: 1,
   },
 ];
 
@@ -69,6 +66,8 @@ export function createRoom(
   const room = new GameRoom(
     overrides.code ?? "TEST01",
     overrides.hostSocketId ?? "host_default_socket",
+    overrides.title ?? "Test Quiz",
+    overrides.ownerId ?? "test_owner_id",
     overrides.questions ?? [...SAMPLE_QUESTIONS]
   );
 

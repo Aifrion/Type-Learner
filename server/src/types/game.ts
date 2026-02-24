@@ -7,13 +7,11 @@ export type Phase =
   | "completed";
 
 export interface Question {
-  text: string;
+  prompt: string;
 
   options: string[];
 
-  correctAnswerIndex: number;
-
-  correctAnswerText: string;
+  correctOptionIndex: number;
 }
 
 export interface Player {
@@ -29,6 +27,8 @@ export interface Player {
 export class GameRoom {
   code: string;
   hostSocketId: string;
+  title: string;
+  ownerId: string;
   questions: Question[];
   players: Map<string, Player>;
   phase: Phase;
@@ -36,9 +36,11 @@ export class GameRoom {
   timerStartedAt: number | null;
   activeTimer: ReturnType<typeof setTimeout> | null;
 
-  constructor(code: string, hostSocketId: string, questions: Question[]) {
+  constructor(code: string, hostSocketId: string, title: string, ownerId: string, questions: Question[]) {
     this.code = code;
     this.hostSocketId = hostSocketId;
+    this.title = title;
+    this.ownerId = ownerId;
     this.questions = questions;
     this.players = new Map();
     this.phase = "lobby";
