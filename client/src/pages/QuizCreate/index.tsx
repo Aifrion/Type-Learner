@@ -1,17 +1,16 @@
-// client/src/pages/QuizCreate/index.tsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuizDatabase } from '@/hooks/useQuizDatabase'; 
 import { QuizQuestion } from '@/types'; 
 import QuestionEditor from './components/QuestionEditor';
 import QuestionList from './components/QuestionList';
 import AlertModal from './components/AlertModal';
+import QuizCreateNavbar from './components/QuizCreateNavbar';
 import '../../styles/QuizCreate.css'; 
 
 const QuizCreate: React.FC = () => {
   const navigate = useNavigate();
-  const { quizId } = useParams<{ quizId?: string }>(); 
-  const { fetchQuiz, saveQuiz, isSaving, isLoading, error } = useQuizDatabase();
+  const { saveQuiz, isSaving, error } = useQuizDatabase();
   
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion>({
@@ -24,21 +23,6 @@ const QuizCreate: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
-
-  useEffect(() => {
-    if (quizId) {
-      const loadData = async () => {
-        const quizData = await fetchQuiz(quizId);
-        if (quizData) {
-          setQuizTitle(quizData.title || '');
-          setQuestions(quizData.questions || []);
-        } else if (error) {
-          showAlert(error);
-        }
-      };
-      loadData();
-    }
-  }, [quizId]); 
 
   const showAlert = (message: string, success = false) => {
     setModalMessage(message);
@@ -86,42 +70,33 @@ const QuizCreate: React.FC = () => {
       return;
     }
 
-    const success = await saveQuiz(quizId, quizTitle, questions);
+    const currentUserId = import.meta.env.VITE_MOCK_USER_ID;
+    const success = await saveQuiz(quizTitle, questions, currentUserId);
+    
     if (success) {
-      showAlert(quizId ? "Quiz updated successfully!" : "Quiz created successfully!", true);
+      showAlert("Quiz created successfully!", true);
     } else {
-      showAlert("Failed to save quiz. Please try again.");
+      // Prioritize hook error if available, else generic message
+      showAlert(error || "Failed to save quiz. Please try again.");
     }
   };
 
-  if (isLoading) return <div className="quiz-create-container"><h2>Loading...</h2></div>;
-
   return (
     <div className="quiz-create-container">
-      <h1>{quizId ? 'Edit Quiz' : 'Create Quiz'}</h1>
+      {}
+      <h1>Create Quiz</h1>
 
-      <div className="quiz-header">
-        <div className="quiz-title-section">
-          <input
-            id="quizTitle"
-            type="text"
-            value={quizTitle}
-            onChange={(e) => setQuizTitle(e.target.value)}
-            placeholder="Enter Quiz Title"
-            className="input-title-bar"
-          />
-        </div>
-        <div className="header-actions">
-          <button className="btn btn-back" onClick={() => navigate(-1)} disabled={isSaving}>Back</button>
-          <button className="btn btn-done" onClick={handleDone} disabled={isSaving}>
-            {isSaving ? 'Saving...' : 'Done'}
-          </button>
-        </div>
-      </div>
+      {}
+      <QuizCreateNavbar 
+        quizTitle={quizTitle}
+        setQuizTitle={setQuizTitle}
+        onDone={handleDone}
+        onExit={() => navigate(-1)}
+        isSaving={isSaving}
+      />
       <hr />
 
       <div className="create-quiz-layout">
-        {/* Pass down state and callbacks to the child components */}
         <QuestionEditor 
           currentQuestion={currentQuestion} 
           setCurrentQuestion={setCurrentQuestion} 
