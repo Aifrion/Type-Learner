@@ -43,3 +43,17 @@ export interface WSMessage {
   type: string;
   payload: unknown;
 }
+
+export interface QuizQuestion {
+  prompt: string;
+  options: string[];
+  correctOptionIndex: number;
+}
+
+export interface Quiz {
+  id?: string; 
+  title: string;
+  questions: QuizQuestion[];
+  createdAt?: any; 
+  updatedAt?: any; 
+}
