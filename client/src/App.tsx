@@ -6,6 +6,7 @@ import HostRegister from '@/pages/HostRegister';
 import HostDashboard from '@/pages/HostDashboard';
 import Join from '@/pages/Join';
 import Lobby from '@/pages/Lobby';
+import Question from '@/pages/Question';
 import Game from '@/pages/Game';
 import Results from '@/pages/Results';
 import QuizCreate from '@/pages/QuizCreate';
@@ -20,6 +21,7 @@ function App() {
       <Route path="/host/dashboard" element={<HostDashboard />} />
       <Route path="/join" element={<Join />} />
       <Route path="/lobby/:code" element={<Lobby />} />
+      <Route path="/question/:code" element={<Question />} />
       <Route path="/typing/:code" element={<Game />} />
       <Route path="/results/:code" element={<Results />} />
       <Route path="/create" element={<QuizCreate />} />
@@ -28,3 +30,4 @@ function App() {
 }
 
 export default App;
+

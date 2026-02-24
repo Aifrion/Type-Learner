@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, it, expect, vi } from "vitest";
 import Game from "@/pages/Game";
@@ -44,32 +44,46 @@ vi.mock("@/pages/Game/components/TypingPhase", () => ({
   ),
 }));
 
+const mockGetDoc = vi.fn();
+
+vi.mock("firebase/firestore", async (orig) => {
+  const actual = (await orig()) as Record<string, unknown>;
+  return {
+    ...actual,
+    doc: vi.fn(() => "doc-ref"),
+    getDoc: (...args: unknown[]) => mockGetDoc(...args),
+  };
+});
+
+vi.mock("@/firebase", () => ({ db: {} }));
+
 describe("Game page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getTypingSessionMock.mockReturnValue(null);
   });
 
-  it("renders TypingPhase with mock question data", () => {
+  it("renders TypingPhase with mock question data", async () => {
     render(
-      <MemoryRouter initialEntries={["/typing/ROOM"]}>
+      <MemoryRouter initialEntries={["/typing/practice"]}>
         <Routes>
           <Route path="/typing/:code" element={<Game />} />
         </Routes>
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/Mock TypingPhase/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Mock TypingPhase/i)).toBeInTheDocument();
+    });
+
     expect(
-      screen.getByText(
-        /What gas do plants absorb from the atmosphere during photosynthesis\?/i
-      )
+      screen.getByText(/What gas do plants absorb from the atmosphere during photosynthesis\?/i)
     ).toBeInTheDocument();
     expect(screen.getByText("Q4/10")).toBeInTheDocument();
     expect(saveTypingSessionMock).toHaveBeenCalledWith(
-      "ROOM",
+      "practice",
       expect.objectContaining({
-        code: "ROOM",
+        code: "practice",
         question: expect.objectContaining({
           answer:
             "Plants absorb carbon dioxide from the atmosphere during photosynthesis.",
@@ -78,14 +92,31 @@ describe("Game page", () => {
     );
   });
 
-  it("handles phase completion without error", () => {
+  it("handles phase completion without error", async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        questions: [
+          {
+            question: "Capital of France?",
+            answers: ["Paris", "London", "Berlin", "Rome"],
+            correctAnswer: 0,
+          },
+        ],
+      }),
+    });
+
     render(
-      <MemoryRouter initialEntries={["/typing/ROOM"]}>
+      <MemoryRouter initialEntries={["/typing/ROOM?q=0"]}>
         <Routes>
           <Route path="/typing/:code" element={<Game />} />
         </Routes>
       </MemoryRouter>
     );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Mock TypingPhase/i)).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByText("Finish Phase"));
 
