@@ -19,6 +19,9 @@ export async function fetchApi<T>(
   return response.json();
 }
 
+export const checkRoomExists = (code: string) =>
+  fetchApi<{ exists: boolean }>(`/rooms/${code}`);
+
 // TODO: Add specific API functions
 // export const createGame = () => fetchApi('/games', { method: 'POST' });
 // export const joinGame = (code: string) => fetchApi(`/games/${code}/join`);
