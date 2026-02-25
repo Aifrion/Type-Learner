@@ -5,9 +5,12 @@ import { Server } from "socket.io";
 import { rooms } from "./state/rooms";
 import {
   handleCreateGame,
-  handleHostDisconnect,
   handleJoinGame,
-  handlePlayerDisconnect,
+  handleStartGame,
+  handleSubmitMultipleChoice,
+  handleSubmitTyping,
+  handleAdvancePhase,
+  handleDisconnect,
 } from "./handlers/roomHandlers";
 
 export function setupServer() {
@@ -39,9 +42,24 @@ export function setupServer() {
       handleJoinGame(socket, data, rooms, io);
     });
 
+    socket.on("start-game", (data) => {
+      handleStartGame(socket, data, rooms, io);
+    });
+
+    socket.on("submit-mc", (data) => {
+      handleSubmitMultipleChoice(socket, data, rooms, io);
+    });
+
+    socket.on("submit-typing", (data) => {
+      handleSubmitTyping(socket, data, rooms, io);
+    });
+
+    socket.on("advance-phase", (data) => {
+      handleAdvancePhase(socket, data.code, rooms, io);
+    });
+
     socket.on("disconnect", () => {
-      handleHostDisconnect(socket.id, rooms, io);
-      handlePlayerDisconnect(socket.id, rooms, io);
+      handleDisconnect(socket.id, rooms, io);
     });
   });
 

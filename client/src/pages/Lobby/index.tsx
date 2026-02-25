@@ -1,57 +1,68 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSocket } from "@/hooks/useSocket";
+
+type Player = {
+  socketId: string;
+  nickname: string;
+  score: number;
+};
+
+type RoomState = {
+  code: string;
+  phase: string;
+  currentQuestionIndex: number;
+  players: Player[];
+};
 
 export default function Lobby() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const socket = useSocket();
 
-  const [nickname, setNickname] = useState("");
-  const [joined, setJoined] = useState(false);
-  const [players, setPlayers] = useState<string[]>([]);
+  const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const nickname = useMemo(() => {
+    const stored = sessionStorage.getItem("nickname");
+    if (stored) return stored;
+    const generated = `Player-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    sessionStorage.setItem("nickname", generated);
+    return generated;
+  }, []);
+
   useEffect(() => {
-    if (!socket || !joined) return;
+    if (!socket || !code) return;
 
-    const handlePlayerList = ({ players: list }: { players: string[] }) => {
-      setPlayers(list);
+    const handleConnect = () => {
+      socket.emit("join-game", { code, nickname });
     };
 
-    const handlePlayerJoined = ({ nickname: name }: { nickname: string }) => {
-      setPlayers((prev) => (prev.includes(name) ? prev : [...prev, name]));
-    };
-
-    const handlePlayerLeft = ({ nickname: name }: { nickname: string }) => {
-      setPlayers((prev) => prev.filter((n) => n !== name));
+    const handleRoomState = (state: RoomState) => {
+      setRoomState(state);
     };
 
     const handleError = ({ message }: { message: string }) => {
       setError(message);
     };
 
-    socket.on("player-list", handlePlayerList);
-    socket.on("player-joined", handlePlayerJoined);
-    socket.on("player-left", handlePlayerLeft);
+    if (socket.connected) {
+      handleConnect();
+    } else {
+      socket.on("connect", handleConnect);
+    }
+
+    socket.on("room-state", handleRoomState);
     socket.on("error", handleError);
 
     return () => {
-      socket.off("player-list", handlePlayerList);
-      socket.off("player-joined", handlePlayerJoined);
-      socket.off("player-left", handlePlayerLeft);
+      socket.off("connect", handleConnect);
+      socket.off("room-state", handleRoomState);
       socket.off("error", handleError);
     };
-  }, [socket, joined]);
+  }, [socket, code, nickname]);
 
-  const handleJoin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = nickname.trim();
-    if (!trimmed || !socket || !code) return;
-
-    socket.emit("join-game", { code, nickname: trimmed });
-    setJoined(true);
-  };
+  if (!code) return <p>Missing room code.</p>;
 
   if (error) {
     return (
@@ -70,74 +81,36 @@ export default function Lobby() {
     );
   }
 
-  if (!joined) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-purple-100 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-white px-8 py-10 shadow-sm">
-          <h1 className="text-center text-2xl font-bold text-gray-800">
-            Enter Your Nickname
-          </h1>
-          <p className="mt-2 text-center text-sm text-gray-500">
-            Room code: <span className="font-semibold tracking-widest text-purple-700">{code}</span>
-          </p>
-
-          <form onSubmit={handleJoin} className="mt-6 space-y-4">
-            <input
-              type="text"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="Your nickname"
-              maxLength={20}
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={!nickname.trim() || !socket}
-              className="w-full rounded-lg bg-purple-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Join Game
-            </button>
-          </form>
-
-          <button
-            type="button"
-            onClick={() => navigate("/join")}
-            className="mt-3 w-full rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
-          >
-            Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-purple-100 px-4">
       <div className="w-full max-w-md rounded-2xl bg-white px-8 py-10 shadow-sm">
         <h1 className="text-center text-2xl font-bold text-gray-800">
-          Waiting Room
+          Lobby
         </h1>
         <p className="mt-2 text-center text-sm text-gray-500">
           Room code: <span className="font-semibold tracking-widest text-purple-700">{code}</span>
         </p>
+        <p className="mt-1 text-center text-sm text-gray-500">
+          Your nickname: <span className="font-semibold text-purple-700">{nickname}</span>
+        </p>
 
         <div className="mt-6">
           <h2 className="text-sm font-semibold text-gray-600">
-            Players ({players.length})
+            Players ({roomState?.players?.length ?? 0})
           </h2>
-          {players.length === 0 ? (
+          {!roomState?.players?.length ? (
             <p className="mt-2 text-sm text-gray-400">
               Waiting for players to join...
             </p>
           ) : (
             <ul className="mt-2 space-y-1">
-              {players.map((name) => (
+              {roomState.players.map((player) => (
                 <li
-                  key={name}
-                  className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700"
+                  key={player.socketId}
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700"
                 >
-                  {name}
+                  <span>{player.nickname}</span>
+                  <span className="text-xs text-gray-400">Score: {player.score}</span>
                 </li>
               ))}
             </ul>
@@ -147,6 +120,14 @@ export default function Lobby() {
         <p className="mt-6 text-center text-sm text-gray-400">
           Waiting for the host to start the game...
         </p>
+
+        <button
+          type="button"
+          onClick={() => navigate("/join")}
+          className="mt-3 w-full rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
+        >
+          Leave Lobby
+        </button>
       </div>
     </div>
   );

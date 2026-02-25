@@ -19,7 +19,7 @@ import {
   createPlayer,
   SAMPLE_QUESTIONS,
 } from "../sampleData/gameData";
-import { handleCreateGame, handleHostDisconnect } from "../../src/handlers/roomHandlers";
+import { handleCreateGame, handleDisconnect } from "../../src/handlers/roomHandlers";
 
 /**
  * Mock socket factory — creates a fake socket object that tracks
@@ -157,7 +157,7 @@ describe("Room Cleanup", () => {
     const room = createRoom({ code: "AABB11", hostSocketId: "host_1" });
     rooms.set(room.code, room);
 
-    handleHostDisconnect("host_1", rooms);
+    handleDisconnect("host_1", rooms);
     expect(rooms.size).toBe(0);
   });
 
@@ -167,7 +167,7 @@ describe("Room Cleanup", () => {
     rooms.set(room1.code, room1);
     rooms.set(room2.code, room2);
 
-    handleHostDisconnect("host_1", rooms);
+    handleDisconnect("host_1", rooms);
     expect(rooms.size).toBe(1);
     expect(rooms.has("ROOM02")).toBe(true);
   });
@@ -182,7 +182,7 @@ describe("Room Cleanup", () => {
     });
     rooms.set(room.code, room);
 
-    handleHostDisconnect("host_1", rooms);
+    handleDisconnect("host_1", rooms);
     expect(rooms.has("TIMER1")).toBe(false);
   });
 
@@ -199,7 +199,7 @@ describe("Room Cleanup", () => {
       }),
     };
 
-    handleHostDisconnect("host_1", rooms, mockIo);
+    handleDisconnect("host_1", rooms, mockIo);
     expect(emittedEvents).toContainEqual([
       "game-ended",
       { reason: "host-disconnected" },

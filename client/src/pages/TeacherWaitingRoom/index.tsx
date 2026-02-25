@@ -4,6 +4,19 @@ import { auth } from "@/firebase";
 import { useSocket } from "@/hooks/useSocket";
 import type { QuestionSetSummary } from "@/types";
 
+type Player = {
+  socketId: string;
+  nickname: string;
+  score: number;
+};
+
+type RoomState = {
+  code: string;
+  phase: string;
+  currentQuestionIndex: number;
+  players: Player[];
+};
+
 export default function TeacherWaitingRoom() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -11,7 +24,7 @@ export default function TeacherWaitingRoom() {
   const socket = useSocket();
 
   const [code, setCode] = useState<string | null>(null);
-  const [players, setPlayers] = useState<string[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,19 +47,14 @@ export default function TeacherWaitingRoom() {
       setCode(roomCode);
     };
 
-    const handlePlayerJoined = ({ nickname }: { nickname: string }) => {
-      setPlayers((prev) => [...prev, nickname]);
-    };
-
-    const handlePlayerLeft = ({ nickname }: { nickname: string }) => {
-      setPlayers((prev) => prev.filter((n) => n !== nickname));
+    const handleRoomState = (state: RoomState) => {
+      setPlayers(state.players);
     };
 
     const handleConnectError = (err: Error) => {
       setError(err.message || "Failed to connect to server.");
     };
 
-    // If already connected, emit immediately; otherwise wait for connect
     if (socket.connected) {
       handleConnect();
     } else {
@@ -54,15 +62,13 @@ export default function TeacherWaitingRoom() {
     }
 
     socket.on("game-created", handleGameCreated);
-    socket.on("player-joined", handlePlayerJoined);
-    socket.on("player-left", handlePlayerLeft);
+    socket.on("room-state", handleRoomState);
     socket.on("connect_error", handleConnectError);
 
     return () => {
       socket.off("connect", handleConnect);
       socket.off("game-created", handleGameCreated);
-      socket.off("player-joined", handlePlayerJoined);
-      socket.off("player-left", handlePlayerLeft);
+      socket.off("room-state", handleRoomState);
       socket.off("connect_error", handleConnectError);
     };
   }, [set, navigate, socket]);
@@ -118,12 +124,12 @@ export default function TeacherWaitingRoom() {
             </p>
           ) : (
             <ul className="mt-2 space-y-1">
-              {players.map((nickname) => (
+              {players.map((player) => (
                 <li
-                  key={nickname}
+                  key={player.socketId}
                   className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700"
                 >
-                  {nickname}
+                  {player.nickname}
                 </li>
               ))}
             </ul>
@@ -133,6 +139,11 @@ export default function TeacherWaitingRoom() {
         <button
           type="button"
           disabled={players.length < 1}
+          onClick={() => {
+            if (socket && code) {
+              socket.emit("start-game", { code });
+            }
+          }}
           className="mt-6 w-full rounded-lg bg-purple-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Start Game
