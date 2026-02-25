@@ -15,7 +15,7 @@ export default function GetStartedCard() {
       <div className="space-y-3">
         <button
           type="button"
-          onClick={() => navigate("/typing/practice")}
+          onClick={() => navigate("/join")}
           className="w-full rounded-lg bg-purple-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-purple-700"
         >
           Practice a Question Set

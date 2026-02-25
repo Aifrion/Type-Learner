@@ -1,16 +1,29 @@
-import { useEffect, useRef } from 'react';
+import { createContext, createElement, useContext, useEffect, useState } from "react";
+import { Outlet } from "react-router-dom";
+import { io, Socket } from "socket.io-client";
 
-export function useSocket(url: string) {
-  const socketRef = useRef<WebSocket | null>(null);
+const SocketContext = createContext<Socket | null>(null);
+
+export function SocketProvider() {
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    // TODO: Implement WebSocket connection
-    // socketRef.current = new WebSocket(url);
+    const s = io();
+    setSocket(s);
 
     return () => {
-      socketRef.current?.close();
+      s.disconnect();
+      setSocket(null);
     };
-  }, [url]);
+  }, []);
 
-  return socketRef.current;
+  return createElement(
+    SocketContext.Provider,
+    { value: socket },
+    createElement(Outlet)
+  );
+}
+
+export function useSocket(): Socket | null {
+  return useContext(SocketContext);
 }

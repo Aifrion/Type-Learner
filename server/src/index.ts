@@ -6,6 +6,8 @@ import { rooms } from "./state/rooms";
 import {
   handleCreateGame,
   handleHostDisconnect,
+  handleJoinGame,
+  handlePlayerDisconnect,
 } from "./handlers/roomHandlers";
 
 export function setupServer() {
@@ -33,10 +35,13 @@ export function setupServer() {
       handleCreateGame(socket, data, rooms);
     });
 
-    // TODO: handle "join-game" event for students joining a room
+    socket.on("join-game", (data) => {
+      handleJoinGame(socket, data, rooms, io);
+    });
 
     socket.on("disconnect", () => {
       handleHostDisconnect(socket.id, rooms, io);
+      handlePlayerDisconnect(socket.id, rooms, io);
     });
   });
 

@@ -51,9 +51,19 @@ export interface QuizQuestion {
 }
 
 export interface Quiz {
-  id?: string; 
+  id?: string;
   title: string;
+  ownerId?: string;
   questions: QuizQuestion[];
-  createdAt?: any; 
-  updatedAt?: any; 
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface QuestionSetSummary {
+  id: string;
+  title?: string;
+  ownerId?: string;
+  questions?: QuizQuestion[];
+  questionCount?: number;
+  isExample?: boolean;
 }
