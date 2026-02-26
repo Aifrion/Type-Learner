@@ -140,6 +140,7 @@ export function handleStartGame(
   }
   if (room.phase !== "lobby") {
     socket.emit("error", { message: "Game is not ready" });
+    return;
   }
   room.phase = "multiple_choice";
   room.currentQuestionIndex = 0;
@@ -311,6 +312,7 @@ export function handleDisconnect(
       room.clearTimer();
       if (io) {
         io.to(code).emit("game-ended", { reason: "host-disconnected" });
+        broadcastState(io, room);
       }
       rooms.delete(code);
       return;
@@ -326,6 +328,9 @@ export function handleDisconnect(
       }
       for (const submissions of room.typingSubmissions.values()) {
         submissions.delete(socketId);
+      }
+      if (io) {
+        broadcastState(io, room);
       }
       return;
     }
