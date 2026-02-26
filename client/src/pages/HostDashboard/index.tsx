@@ -11,17 +11,38 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/firebase";
 import BackButton from "@/pages/HostAuth/components/BackButton";
-
-interface QuestionSetSummary {
-  id: string;
-  title?: string;
-  questionCount?: number;
-  isExample?: boolean;
-}
+import type { QuestionSetSummary } from "@/types";
 
 const EXAMPLE_SET: QuestionSetSummary = {
   id: "example",
   title: "Sample Quiz",
+  questions: [
+    {
+      prompt: "What does HTML stand for?",
+      options: [
+        "Hyper Text Markup Language",
+        "Hot Mail",
+        "How To Make Lasagna",
+        "Hyper Tool Multi Language",
+      ],
+      correctOptionIndex: 0,
+    },
+    {
+      prompt: "Which keyword declares a constant in JavaScript?",
+      options: ["var", "let", "const", "fixed"],
+      correctOptionIndex: 2,
+    },
+    {
+      prompt: "What does CSS stand for?",
+      options: [
+        "Computer Style Sheets",
+        "Cascading Style Sheets",
+        "Creative Style System",
+        "Colorful Style Sheets",
+      ],
+      correctOptionIndex: 1,
+    },
+  ],
   questionCount: 3,
   isExample: true,
 };
@@ -50,14 +71,30 @@ export default function HostDashboard() {
 
   const handleDelete = async (set: QuestionSetSummary) => {
     if (set.id === "example" || set.isExample) return;
-    if (!window.confirm(`Delete "${set.title ?? "Untitled"}"? This cannot be undone.`)) return;
+    if (
+      !window.confirm(
+        `Delete "${set.title ?? "Untitled"}"? This cannot be undone.`,
+      )
+    )
+      return;
     setError(null);
     try {
       await deleteDoc(doc(db, "questionSets", set.id));
       setSets((prev) => prev.filter((s) => s.id !== set.id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete question set.");
+      setError(
+        e instanceof Error ? e.message : "Failed to delete question set.",
+      );
     }
+  };
+
+  const handleHost = (set: QuestionSetSummary) => {
+    if (!set.questions?.length) {
+      setError("This question set has no questions.");
+      return;
+    }
+
+    navigate("/host/waiting-room", { state: { set } });
   };
 
   useEffect(() => {
@@ -70,26 +107,33 @@ export default function HostDashboard() {
       setError(null);
       try {
         const q = query(
-          collection(db, "questionSets"),
-          where("createdBy", "==", user.uid)
+          collection(db, "quizzes"),
+          where("ownerId", "==", user.uid),
         );
         const snapshot = await getDocs(q);
         const list: QuestionSetSummary[] = snapshot.docs.map((d) => {
           const data = d.data();
+          const questions = Array.isArray(data?.questions)
+            ? data.questions
+            : [];
           return {
             id: d.id,
             title:
-            data?.title ??
-            data?.name ??
-            data?.setName ??
-            data?.quizTitle ??
-            "Untitled",
-            questionCount: Array.isArray(data?.questions) ? data.questions.length : 0,
+              data?.title ??
+              data?.name ??
+              data?.setName ??
+              data?.quizTitle ??
+              "Untitled",
+            ownerId: data?.ownerId ?? user.uid,
+            questions,
+            questionCount: questions.length,
           };
         });
         setSets([EXAMPLE_SET, ...list]);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load question sets.");
+        setError(
+          e instanceof Error ? e.message : "Failed to load question sets.",
+        );
       } finally {
         setLoading(false);
       }
@@ -111,7 +155,9 @@ export default function HostDashboard() {
         <BackButton />
         <div className="rounded-2xl bg-white px-8 py-10 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <h1 className="text-2xl font-bold text-gray-800">My Question Sets</h1>
+            <h1 className="text-2xl font-bold text-gray-800">
+              My Question Sets
+            </h1>
             <button
               type="button"
               onClick={() => navigate("/create")}
@@ -135,9 +181,12 @@ export default function HostDashboard() {
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-gray-800">{s.title ?? "Untitled"}</p>
+                  <p className="font-medium text-gray-800">
+                    {s.title ?? "Untitled"}
+                  </p>
                   <p className="text-sm text-gray-500">
-                    {s.questionCount ?? 0} question{s.questionCount !== 1 ? "s" : ""}
+                    {s.questionCount ?? 0} question
+                    {s.questionCount !== 1 ? "s" : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">
@@ -159,7 +208,7 @@ export default function HostDashboard() {
                   )}
                   <button
                     type="button"
-                    onClick={() => {}}
+                    onClick={() => handleHost(s)}
                     className="rounded-lg bg-purple-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-purple-700"
                   >
                     Host
@@ -179,7 +228,11 @@ export default function HostDashboard() {
             </button>
             <button
               type="button"
-              onClick={() => signOut(auth).then(() => navigate("/host-auth", { replace: true }))}
+              onClick={() =>
+                signOut(auth).then(() =>
+                  navigate("/host-auth", { replace: true }),
+                )
+              }
               className="w-full rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
             >
               Sign out

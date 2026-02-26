@@ -19,7 +19,7 @@ import {
   createPlayer,
   SAMPLE_QUESTIONS,
 } from "../sampleData/gameData";
-import { handleCreateGame, handleHostDisconnect } from "../../src/handlers/roomHandlers";
+import { handleCreateGame, handleDisconnect } from "../../src/handlers/roomHandlers";
 
 /**
  * Mock socket factory — creates a fake socket object that tracks
@@ -60,13 +60,13 @@ describe("Room Creation", () => {
 
   it("should add a new room to the registry", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
     expect(rooms.size).toBe(1);
   });
 
   it("should store the room with its code as the registry key", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
 
     const [key, room] = [...rooms.entries()][0];
     expect(key).toBe(room.code);
@@ -74,7 +74,7 @@ describe("Room Creation", () => {
 
   it("should set the host socket ID to the creating socket", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
 
     const room = [...rooms.values()][0];
     expect(room.hostSocketId).toBe("host_socket_1");
@@ -82,7 +82,7 @@ describe("Room Creation", () => {
 
   it("should populate questions from the provided quiz data", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
 
     const room = [...rooms.values()][0];
     expect(room.questions).toEqual(SAMPLE_QUESTIONS);
@@ -91,7 +91,7 @@ describe("Room Creation", () => {
 
   it("should start with an empty players map", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
 
     const room = [...rooms.values()][0];
     expect(room.players.size).toBe(0);
@@ -99,7 +99,7 @@ describe("Room Creation", () => {
 
   it("should start in the lobby phase", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
 
     const room = [...rooms.values()][0];
     expect(room.phase).toBe("lobby");
@@ -107,7 +107,7 @@ describe("Room Creation", () => {
 
   it("should start at question index 0", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
 
     const room = [...rooms.values()][0];
     expect(room.currentQuestionIndex).toBe(0);
@@ -115,7 +115,7 @@ describe("Room Creation", () => {
 
   it("should start with no active timer", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
 
     const room = [...rooms.values()][0];
     expect(room.activeTimer).toBeNull();
@@ -124,7 +124,7 @@ describe("Room Creation", () => {
 
   it("should emit 'game-created' back to the host with the room code", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
 
     const room = [...rooms.values()][0];
     expect(socket.emittedEvents).toContainEqual([
@@ -135,7 +135,7 @@ describe("Room Creation", () => {
 
   it("should join the host socket to the Socket.IO room", () => {
     const socket = createMockSocket("host_socket_1");
-    handleCreateGame(socket, { questions: SAMPLE_QUESTIONS }, rooms);
+    handleCreateGame(socket, { title: "Test Quiz", ownerId: "test_owner", questions: SAMPLE_QUESTIONS }, rooms);
 
     const room = [...rooms.values()][0];
     expect(socket.joinedRooms).toContain(room.code);
@@ -157,7 +157,7 @@ describe("Room Cleanup", () => {
     const room = createRoom({ code: "AABB11", hostSocketId: "host_1" });
     rooms.set(room.code, room);
 
-    handleHostDisconnect("host_1", rooms);
+    handleDisconnect("host_1", rooms);
     expect(rooms.size).toBe(0);
   });
 
@@ -167,7 +167,7 @@ describe("Room Cleanup", () => {
     rooms.set(room1.code, room1);
     rooms.set(room2.code, room2);
 
-    handleHostDisconnect("host_1", rooms);
+    handleDisconnect("host_1", rooms);
     expect(rooms.size).toBe(1);
     expect(rooms.has("ROOM02")).toBe(true);
   });
@@ -182,7 +182,7 @@ describe("Room Cleanup", () => {
     });
     rooms.set(room.code, room);
 
-    handleHostDisconnect("host_1", rooms);
+    handleDisconnect("host_1", rooms);
     expect(rooms.has("TIMER1")).toBe(false);
   });
 
@@ -199,7 +199,7 @@ describe("Room Cleanup", () => {
       }),
     };
 
-    handleHostDisconnect("host_1", rooms, mockIo);
+    handleDisconnect("host_1", rooms, mockIo);
     expect(emittedEvents).toContainEqual([
       "game-ended",
       { reason: "host-disconnected" },

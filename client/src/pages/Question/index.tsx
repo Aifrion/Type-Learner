@@ -44,11 +44,15 @@ function toMultipleChoiceQuestion(
 export default function Question() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  const [questionSet, setQuestionSet] = useState<QuestionSetRecord | null>(null);
+  const [questionSet, setQuestionSet] = useState<QuestionSetRecord | null>(
+    null,
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const autoAdvanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoAdvanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const hasNavigatedRef = useRef(false);
 
   useEffect(() => {
@@ -63,7 +67,7 @@ export default function Question() {
       setError(null);
 
       try {
-        const snapshot = await getDoc(doc(db, "questionSets", code));
+        const snapshot = await getDoc(doc(db, "quizzes", code));
         if (!snapshot.exists()) {
           throw new Error(`Question set "${code}" not found`);
         }
@@ -164,10 +168,7 @@ export default function Question() {
   }
 
   const rawQuestion = questions[currentIndex];
-  const question = toMultipleChoiceQuestion(
-    rawQuestion,
-    String(currentIndex),
-  );
+  const question = toMultipleChoiceQuestion(rawQuestion, String(currentIndex));
   const isLastQuestion = currentIndex >= questions.length - 1;
 
   return (
