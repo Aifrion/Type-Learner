@@ -1,199 +1,136 @@
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-
-const mockNavigate = vi.fn();
-
-vi.mock("react-router-dom", async (orig) => {
-  const actual = (await orig()) as Record<string, unknown>;
-  return {
-    ...actual,
-    useParams: () => ({ code: "ROOM" }),
-    useNavigate: () => mockNavigate,
-  };
-});
-
-const mockData = [
-  {
-    id: "set1",
-    questions: [
-      {
-        question: "Capital of France?",
-        answers: ["Paris", "London", "Berlin", "Rome"],
-        correctAnswer: 0,
-      },
-      {
-        question: "2+2?",
-        answers: ["3", "4", "5", "6"],
-        correctAnswer: 1,
-      },
-    ],
-  },
-];
-const mockGetDoc = vi.fn();
-
-vi.mock("firebase/firestore", async (orig) => {
-  const actual = (await orig()) as Record<string, unknown>;
-  return {
-    ...actual,
-    doc: vi.fn(() => "docRef"),
-    getDoc: (...args: unknown[]) => mockGetDoc(...args),
-  };
-});
-
-vi.mock("@/firebase", () => ({ db: {} }));
-vi.mock("@/pages/Game/components/Timer", () => ({
-  default: ({
-    onTimeUp,
-    isRunning,
-  }: {
-    onTimeUp: () => void;
-    isRunning: boolean;
-  }) => (
-    <button onClick={onTimeUp} disabled={!isRunning}>
-      Mock Timer
-    </button>
-  ),
-}));
-
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import Question from "@/pages/Question";
 
-function renderQuestion() {
-  return render(
-    <MemoryRouter initialEntries={["/question/ROOM"]}>
-      <Routes>
-        <Route path="/question/:code" element={<Question />} />
-      </Routes>
-    </MemoryRouter>,
-  );
-}
+const handlers = new Map<string, Set<(payload: unknown) => void>>();
+
+const addHandler = (event: string, cb: (payload: unknown) => void) => {
+  if (!handlers.has(event)) {
+    handlers.set(event, new Set());
+  }
+  handlers.get(event)?.add(cb);
+};
+
+const removeHandler = (event: string, cb: (payload: unknown) => void) => {
+  handlers.get(event)?.delete(cb);
+};
+
+const emitToClient = (event: string, payload: unknown) => {
+  act(() => {
+    handlers.get(event)?.forEach((cb) => cb(payload));
+  });
+};
+
+const socketMock = {
+  connected: true,
+  id: "socket-1",
+  on: vi.fn((event: string, cb: (payload: unknown) => void) => {
+    addHandler(event, cb);
+    return socketMock;
+  }),
+  off: vi.fn((event: string, cb: (payload: unknown) => void) => {
+    removeHandler(event, cb);
+    return socketMock;
+  }),
+  emit: vi.fn(),
+  once: vi.fn(),
+  connect: vi.fn(),
+};
+
+vi.mock("@/hooks/useSocket", () => ({
+  useSocket: () => socketMock,
+}));
 
 describe("Question page", () => {
   beforeEach(() => {
-    mockNavigate.mockReset();
-    mockGetDoc.mockReset();
+    handlers.clear();
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("shows loading then renders first question", async () => {
-    mockGetDoc.mockResolvedValueOnce({
-      id: "ROOM",
-      exists: () => true,
-      data: () => ({ questions: mockData[0].questions }),
-    });
-
-    renderQuestion();
-
-    expect(screen.getByText(/Loading/i)).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(screen.getByText(/Capital of France/i)).toBeInTheDocument();
-    });
-
-    expect(screen.getByText("Question 1 of 2")).toBeInTheDocument();
-  });
-
-  it("renders error state when fetch fails", async () => {
-    mockGetDoc.mockRejectedValueOnce(new Error("boom"));
-
-    renderQuestion();
-
-    await waitFor(() => {
-      expect(screen.getByText(/boom/i)).toBeInTheDocument();
-    });
-  });
-
-  it("advances through questions and navigates to typing after the last one", async () => {
-    mockGetDoc.mockResolvedValueOnce({
-      id: "ROOM",
-      exists: () => true,
-      data: () => ({ questions: mockData[0].questions }),
-    });
-
-    renderQuestion();
-
-    await waitFor(() => screen.getByText(/Capital of France/i));
-
-    await act(async () => {
-      screen.getByRole("button", { name: /option 1: paris/i }).click();
-    });
-    await act(async () => {
-      screen.getByRole("button", { name: /next question/i }).click();
-    });
-
-    expect(screen.getByText(/2\+2\?/i)).toBeInTheDocument();
-    expect(screen.getByText("Question 2 of 2")).toBeInTheDocument();
-
-    await act(async () => {
-      screen.getByRole("button", { name: /option 2: 4/i }).click();
-    });
-    await act(async () => {
-      screen.getByRole("button", { name: /continue to typing/i }).click();
-    });
-
-    expect(mockNavigate).toHaveBeenCalledWith("/typing/ROOM?q=1");
-  });
-
-  it("uses a safe fallback index when correctAnswer is out of bounds", async () => {
-    mockGetDoc.mockResolvedValueOnce({
-      id: "ROOM",
-      exists: () => true,
-      data: () => ({
-        questions: [
-          {
-            question: "Pick A",
-            answers: ["A", "B"],
-            correctAnswer: 99,
-          },
-        ],
-      }),
-    });
-
-    renderQuestion();
-
-    await waitFor(
-      () => {
-        expect(screen.getByText(/Pick A/i)).toBeInTheDocument();
-      },
+  it("renders options from room-state and submits selected answer", async () => {
+    render(
+      <MemoryRouter initialEntries={["/question/ROOM"]}>
+        <Routes>
+          <Route path="/question/:code" element={<Question />} />
+        </Routes>
+      </MemoryRouter>
     );
 
-    await act(async () => {
-      screen.getByRole("button", { name: /option 2: b/i }).click();
+    emitToClient("room-state", {
+      code: "ROOM",
+      phase: "multiple_choice",
+      currentQuestionIndex: 0,
+      question: {
+        prompt: "What is 2 + 2?",
+        options: ["3", "4", "5", "6"],
+        correctOptionIndex: 1,
+      },
+      players: [],
     });
 
-    expect(screen.getByText(/the correct answer is A/i)).toBeInTheDocument();
+    expect(await screen.findByText("What is 2 + 2?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "4" }));
+
+    expect(socketMock.emit).toHaveBeenCalledWith("submit-mc", {
+      code: "ROOM",
+      answerIndex: 1,
+    });
   });
 
-  it("auto navigates to typing when final question time expires", async () => {
-    mockGetDoc.mockResolvedValueOnce({
-      id: "ROOM",
-      exists: () => true,
-      data: () => ({ questions: mockData[0].questions }),
+  it("redirects to typing when phase changes", async () => {
+    render(
+      <MemoryRouter initialEntries={["/question/ROOM"]}>
+        <Routes>
+          <Route path="/question/:code" element={<Question />} />
+          <Route path="/typing/:code" element={<div>Typing Route</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    emitToClient("room-state", {
+      code: "ROOM",
+      phase: "typing",
+      currentQuestionIndex: 0,
+      question: {
+        prompt: "Question",
+        options: ["A", "B"],
+        correctOptionIndex: 0,
+      },
+      players: [],
     });
 
-    renderQuestion();
-
-    await screen.findByText(/Capital of France/i);
-
-    await act(async () => {
-      screen.getByRole("button", { name: /option 1: paris/i }).click();
+    await waitFor(() => {
+      expect(screen.getByText("Typing Route")).toBeInTheDocument();
     });
-    await act(async () => {
-      screen.getByRole("button", { name: /next question/i }).click();
-    });
-
-    await act(async () => {
-      screen.getByText("Mock Timer").click();
-    });
-    const continueBtn = await screen.findByRole("button", { name: /continue to typing/i });
-    await act(async () => {
-      continueBtn.click();
-    });
-
-    expect(mockNavigate).toHaveBeenCalledWith("/typing/ROOM?q=1");
   });
 
+  it("does not submit again when server marks player as submitted", async () => {
+    render(
+      <MemoryRouter initialEntries={["/question/ROOM"]}>
+        <Routes>
+          <Route path="/question/:code" element={<Question />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    emitToClient("room-state", {
+      code: "ROOM",
+      phase: "multiple_choice",
+      currentQuestionIndex: 0,
+      question: {
+        prompt: "Already answered",
+        options: ["A", "B"],
+        correctOptionIndex: 0,
+      },
+      players: [{ socketId: "socket-1", nickname: "Player", score: 0, hasSubmitted: true }],
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "A" }));
+
+    expect(socketMock.emit).not.toHaveBeenCalledWith(
+      "submit-mc",
+      expect.objectContaining({ code: "ROOM" })
+    );
+  });
 });

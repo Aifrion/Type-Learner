@@ -24,6 +24,7 @@ export default function TeacherWaitingRoom() {
   const socket = useSocket();
 
   const [code, setCode] = useState<string | null>(null);
+  const [phase, setPhase] = useState<string>("lobby");
   const [players, setPlayers] = useState<Player[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,9 +46,11 @@ export default function TeacherWaitingRoom() {
 
     const handleGameCreated = ({ code: roomCode }: { code: string }) => {
       setCode(roomCode);
+      sessionStorage.setItem("hostRoomCode", roomCode);
     };
 
     const handleRoomState = (state: RoomState) => {
+      setPhase(state.phase);
       setPlayers(state.players);
     };
 
@@ -72,6 +75,21 @@ export default function TeacherWaitingRoom() {
       socket.off("connect_error", handleConnectError);
     };
   }, [set, navigate, socket]);
+
+  useEffect(() => {
+    if (!code) return;
+    if (phase === "multiple_choice") {
+      navigate(`/question/${code}`, { replace: true });
+      return;
+    }
+    if (phase === "typing") {
+      navigate(`/typing/${code}`, { replace: true });
+      return;
+    }
+    if (phase === "completed") {
+      navigate(`/results/${code}`, { replace: true });
+    }
+  }, [phase, code, navigate]);
 
   if (error) {
     return (
@@ -151,7 +169,12 @@ export default function TeacherWaitingRoom() {
 
         <button
           type="button"
-          onClick={() => navigate("/host/dashboard")}
+          onClick={() => {
+            if (code && sessionStorage.getItem("hostRoomCode") === code) {
+              sessionStorage.removeItem("hostRoomCode");
+            }
+            navigate("/host/dashboard");
+          }}
           className="mt-3 w-full rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
         >
           Cancel

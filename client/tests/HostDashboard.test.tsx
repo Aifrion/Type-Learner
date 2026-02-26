@@ -7,14 +7,10 @@ import {
 } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import HostDashboard from "@/pages/HostDashboard";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import {
-  collection,
   deleteDoc,
   doc,
-  getDocs,
-  query,
-  where,
 } from "firebase/firestore";
 
 const navigateMock = vi.fn();
@@ -50,7 +46,6 @@ vi.mock("firebase/firestore", () => ({
   deleteDoc: vi.fn(() => Promise.resolve()),
 }));
 
-const onAuthStateChangedMock = vi.mocked(onAuthStateChanged);
 const signOutMock = vi.mocked(signOut);
 const deleteDocMock = vi.mocked(deleteDoc);
 const docMock = vi.mocked(doc);

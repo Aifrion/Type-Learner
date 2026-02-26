@@ -7,7 +7,7 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest run"
+    "test": "vitest run tests --exclude \"dist/**\""
   },
   "dependencies": {
     "cors": "^2.8.5",

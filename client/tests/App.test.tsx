@@ -8,6 +8,24 @@ vi.mock("@/firebase", () => ({
   db: { kind: "db" },
 }));
 
+const socketMock = {
+  connected: false,
+  id: "socket-1",
+  on: vi.fn(),
+  off: vi.fn(),
+  emit: vi.fn(),
+  connect: vi.fn(),
+  once: vi.fn(),
+};
+
+vi.mock("@/hooks/useSocket", () => ({
+  SocketProvider: () => {
+    const { Outlet } = require("react-router-dom");
+    return <Outlet />;
+  },
+  useSocket: () => socketMock,
+}));
+
 const renderWithRoute = (initialEntry: string) =>
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -33,11 +51,12 @@ describe("App routing", () => {
 
   it("renders game page with code", async () => {
     renderWithRoute("/typing/practice");
-    expect(
-      await screen.findByText(
-        /What gas do plants absorb from the atmosphere during photosynthesis\?/i
-      )
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Connecting.../i)).toBeInTheDocument();
+  });
+
+  it("renders question page with code", async () => {
+    renderWithRoute("/question/ABCD");
+    expect(await screen.findByText(/Multiple Choice/i)).toBeInTheDocument();
   });
 
   it("renders results page with code", () => {

@@ -8,13 +8,17 @@ interface TypingPhaseProps {
   currentQuestionNumber: number;
   totalQuestions: number;
   onPhaseComplete: (stats: TypingStats) => void;
+  readOnly?: boolean;
+  phaseEndsAt?: number;
 }
 
 export default function TypingPhase({
   question,
   currentQuestionNumber,
   totalQuestions,
-  onPhaseComplete
+  onPhaseComplete,
+  readOnly = false,
+  phaseEndsAt
 }: TypingPhaseProps) {
   const [stats, setStats] = useState<TypingStats>({
     wpm: 0,
@@ -29,16 +33,18 @@ export default function TypingPhase({
   }, []);
 
   const handleComplete = useCallback((finalStats: TypingStats) => {
+    if (readOnly) return;
     setIsComplete(true);
     onPhaseComplete(finalStats);
-  }, [onPhaseComplete]);
+  }, [onPhaseComplete, readOnly]);
 
   const handleTimeUp = useCallback(() => {
+    if (readOnly) return;
     if (!isComplete) {
       setIsComplete(true);
       onPhaseComplete(stats);
     }
-  }, [isComplete, stats, onPhaseComplete]);
+  }, [isComplete, stats, onPhaseComplete, readOnly]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -52,6 +58,7 @@ export default function TypingPhase({
             duration={question.timeLimit}
             onTimeUp={handleTimeUp}
             isRunning={!isComplete}
+            endsAtMs={phaseEndsAt}
           />
         </div>
 
@@ -85,7 +92,7 @@ export default function TypingPhase({
           <div className="border-t border-gray-200 pt-6">
             <TypingInput
               targetText={question.answer}
-              disabled={isComplete}
+              disabled={isComplete || readOnly}
               onStatsUpdate={handleStatsUpdate}
               onComplete={handleComplete}
             />

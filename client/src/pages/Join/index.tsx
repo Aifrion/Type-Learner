@@ -38,6 +38,7 @@ const JoinPage = () => {
         sessionStorage.getItem('nickname') ||
         `Player-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
       sessionStorage.setItem('nickname', nick);
+      sessionStorage.removeItem("hostRoomCode");
       navigate(`/lobby/${code}`);
     } catch (err) {
       console.error('Failed to validate room code', err);

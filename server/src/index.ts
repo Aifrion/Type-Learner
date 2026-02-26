@@ -10,6 +10,7 @@ import {
   handleSubmitMultipleChoice,
   handleSubmitTyping,
   handleAdvancePhase,
+  handleRequestRoomState,
   handleDisconnect,
 } from "./handlers/roomHandlers";
 
@@ -56,6 +57,10 @@ export function setupServer() {
 
     socket.on("advance-phase", (data) => {
       handleAdvancePhase(socket, data.code, rooms, io);
+    });
+
+    socket.on("request-room-state", (data) => {
+      handleRequestRoomState(socket, data, rooms);
     });
 
     socket.on("disconnect", () => {
