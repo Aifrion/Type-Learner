@@ -46,7 +46,12 @@ interface IO {
 const MC_DURATION_MS = 15_000;
 const TYPING_DURATION_MS = 30_000;
 
-function setPhaseTimer(room: GameRoom, io: IO, durationMs: number, next: () => void) {
+function setPhaseTimer(
+  room: GameRoom,
+  io: IO,
+  durationMs: number,
+  next: () => void,
+) {
   room.clearTimer();
   room.phaseDurationMs = durationMs;
   room.timerStartedAt = Date.now();
@@ -71,10 +76,16 @@ function broadcastState(io: IO, room: GameRoom) {
 export function handleCreateGame(
   socket: Socket,
   data: CreateGameData,
-  rooms: Map<string, GameRoom>
+  rooms: Map<string, GameRoom>,
 ): void {
   const code = generateRoomCode(rooms);
-  const room = new GameRoom(code, socket.id, data.title, data.ownerId, data.questions);
+  const room = new GameRoom(
+    code,
+    socket.id,
+    data.title,
+    data.ownerId,
+    data.questions,
+  );
   rooms.set(code, room);
   socket.join(code);
   socket.emit("game-created", { code });
@@ -84,7 +95,7 @@ export function handleJoinGame(
   socket: Socket,
   data: JoinGameData,
   rooms: Map<string, GameRoom>,
-  io: IO
+  io: IO,
 ): void {
   const room = rooms.get(data.code);
 
@@ -116,7 +127,7 @@ export function handleStartGame(
   socket: Socket,
   data: StartGameData,
   rooms: Map<string, GameRoom>,
-  io: IO
+  io: IO,
 ): void {
   const room = rooms.get(data.code);
   if (!room) {
@@ -127,18 +138,19 @@ export function handleStartGame(
     socket.emit("error", { message: "Only host can start the game" });
     return;
   }
+  if (room.phase !== "lobby") {
+    socket.emit("error", { message: "Game is not ready" });
+  }
   room.phase = "multiple_choice";
   room.currentQuestionIndex = 0;
-  setPhaseTimer(room, io, MC_DURATION_MS, () =>
-    advanceToNextPhase(room, io)
-  );
+  setPhaseTimer(room, io, MC_DURATION_MS, () => advanceToNextPhase(room, io));
 }
 
 export function handleSubmitMultipleChoice(
   socket: Socket,
   data: SubmitMCData,
   rooms: Map<string, GameRoom>,
-  io: IO
+  io: IO,
 ): void {
   const room = rooms.get(data.code);
   if (!room) {
@@ -146,7 +158,9 @@ export function handleSubmitMultipleChoice(
     return;
   }
   if (room.phase !== "multiple_choice") {
-    socket.emit("error", { message: "Not accepting multiple choice answers now" });
+    socket.emit("error", {
+      message: "Not accepting multiple choice answers now",
+    });
     return;
   }
   const player = room.players.get(socket.id);
@@ -154,8 +168,9 @@ export function handleSubmitMultipleChoice(
     socket.emit("error", { message: "Player not in room" });
     return;
   }
-  const existing =
-    room.mcSubmissions.get(room.currentQuestionIndex)?.get(socket.id);
+  const existing = room.mcSubmissions
+    .get(room.currentQuestionIndex)
+    ?.get(socket.id);
   if (existing) {
     socket.emit("error", { message: "Answer already submitted" });
     return;
@@ -177,7 +192,7 @@ export function handleSubmitTyping(
   socket: Socket,
   data: SubmitTypingData,
   rooms: Map<string, GameRoom>,
-  io: IO
+  io: IO,
 ): void {
   const room = rooms.get(data.code);
   if (!room) {
@@ -193,8 +208,9 @@ export function handleSubmitTyping(
     socket.emit("error", { message: "Player not in room" });
     return;
   }
-  const existing =
-    room.typingSubmissions.get(room.currentQuestionIndex)?.get(socket.id);
+  const existing = room.typingSubmissions
+    .get(room.currentQuestionIndex)
+    ?.get(socket.id);
   if (existing) {
     socket.emit("error", { message: "Typing already submitted" });
     return;
@@ -216,7 +232,7 @@ export function handleAdvancePhase(
   socket: Socket,
   code: string,
   rooms: Map<string, GameRoom>,
-  io: IO
+  io: IO,
 ): void {
   const room = rooms.get(code);
   if (!room) {
@@ -261,7 +277,7 @@ function advanceToNextPhase(room: GameRoom, io: IO) {
     scoreMultipleChoice(room);
     room.phase = "typing";
     setPhaseTimer(room, io, TYPING_DURATION_MS, () =>
-      advanceToNextPhase(room, io)
+      advanceToNextPhase(room, io),
     );
     return;
   }
@@ -272,7 +288,7 @@ function advanceToNextPhase(room: GameRoom, io: IO) {
       room.currentQuestionIndex += 1;
       room.phase = "multiple_choice";
       setPhaseTimer(room, io, MC_DURATION_MS, () =>
-        advanceToNextPhase(room, io)
+        advanceToNextPhase(room, io),
       );
     } else {
       room.phase = "completed";
@@ -287,7 +303,7 @@ function advanceToNextPhase(room: GameRoom, io: IO) {
 export function handleDisconnect(
   socketId: string,
   rooms: Map<string, GameRoom>,
-  io?: IO
+  io?: IO,
 ): void {
   for (const [code, room] of rooms) {
     // Host disconnect — tear down the whole room
@@ -310,13 +326,6 @@ export function handleDisconnect(
       }
       for (const submissions of room.typingSubmissions.values()) {
         submissions.delete(socketId);
-      }
-
-      if (room.players.size === 0) {
-        room.clearTimer();
-        rooms.delete(code);
-      } else if (io) {
-        broadcastState(io, room);
       }
       return;
     }
