@@ -50,6 +50,40 @@ interface IO {
 const MC_DURATION_MS = 15_000;
 const TYPING_DURATION_MS = 30_000;
 
+function normalizeNickname(rawNickname: string): string {
+  return rawNickname.trim().replace(/\s+/g, " ");
+}
+
+function getUniqueNickname(
+  room: GameRoom,
+  requestedNickname: string,
+  socketId: string,
+): string {
+  const normalizedNickname = normalizeNickname(requestedNickname);
+  const usedNicknames = new Set(
+    Array.from(room.players.values())
+      .filter((player) => player.socketId !== socketId)
+      .map((player) => player.nickname.toLowerCase()),
+  );
+
+  if (!usedNicknames.has(normalizedNickname.toLowerCase())) {
+    return normalizedNickname;
+  }
+
+  // Strip trailing numeric suffix so "Name 2" conflicts still produce "Name 3".
+  const baseNickname =
+    normalizedNickname.replace(/\s+\d+$/, "") || normalizedNickname;
+
+  let suffix = 2;
+  let candidateNickname = `${baseNickname} ${suffix}`;
+  while (usedNicknames.has(candidateNickname.toLowerCase())) {
+    suffix += 1;
+    candidateNickname = `${baseNickname} ${suffix}`;
+  }
+
+  return candidateNickname;
+}
+
 function setPhaseTimer(
   room: GameRoom,
   io: IO,
@@ -131,7 +165,7 @@ export function handleJoinGame(
   io: IO,
 ): void {
   const room = rooms.get(data.code);
-  const nickname = data.nickname?.trim();
+  const nickname = data.nickname ? normalizeNickname(data.nickname) : "";
 
   if (!room) {
     socket.emit("error", { message: "Room not found" });
@@ -147,22 +181,15 @@ export function handleJoinGame(
     return;
   }
 
-  for (const [existingSocketId, existingPlayer] of room.players.entries()) {
-    if (
-      existingSocketId !== socket.id &&
-      existingPlayer.nickname === nickname
-    ) {
-      removePlayerFromRoom(room, existingSocketId);
-    }
-  }
+  const uniqueNickname = getUniqueNickname(room, nickname, socket.id);
 
   const existingPlayer = room.players.get(socket.id);
   if (existingPlayer) {
-    existingPlayer.nickname = nickname;
+    existingPlayer.nickname = uniqueNickname;
   } else {
     const player: Player = {
       socketId: socket.id,
-      nickname,
+      nickname: uniqueNickname,
       score: 0,
       hasSubmitted: false,
     };

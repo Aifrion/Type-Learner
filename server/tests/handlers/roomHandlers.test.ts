@@ -328,7 +328,7 @@ describe("Player State in Room", () => {
     expect(room.players.get("s1")?.hasSubmitted).toBe(true);
   });
 
-  it("should replace stale nickname entries when a new socket joins with same nickname", () => {
+  it("should auto-rename new socket when requested nickname already exists", () => {
     const room = createRoom({ code: "REJOIN2" });
     const io = createMockIo();
     const rooms = new Map<string, GameRoom>([[room.code, room]]);
@@ -350,10 +350,40 @@ describe("Player State in Room", () => {
       io
     );
 
-    expect(room.players.has("old_socket")).toBe(false);
+    expect(room.players.has("old_socket")).toBe(true);
     expect(room.players.has("new_socket")).toBe(true);
-    expect(room.mcSubmissions.get(0)?.has("old_socket")).toBe(false);
-    expect(room.typingSubmissions.get(0)?.has("old_socket")).toBe(false);
+    expect(room.players.get("new_socket")?.nickname).toBe("Alice 2");
+    expect(room.mcSubmissions.get(0)?.has("old_socket")).toBe(true);
+    expect(room.typingSubmissions.get(0)?.has("old_socket")).toBe(true);
+  });
+
+  it("should increment suffixes case-insensitively for repeated nickname joins", () => {
+    const room = createRoom({ code: "REJOIN3" });
+    const io = createMockIo();
+    const rooms = new Map<string, GameRoom>([[room.code, room]]);
+
+    room.players.set("s1", {
+      socketId: "s1",
+      nickname: "Delicate Kangaroo",
+      score: 0,
+      hasSubmitted: false,
+    });
+    room.players.set("s2", {
+      socketId: "s2",
+      nickname: "Delicate Kangaroo 2",
+      score: 0,
+      hasSubmitted: false,
+    });
+
+    const newSocket = createMockSocket("s3");
+    handleJoinGame(
+      newSocket,
+      { code: room.code, nickname: "delicate kangaroo" },
+      rooms,
+      io
+    );
+
+    expect(room.players.get("s3")?.nickname).toBe("delicate kangaroo 3");
   });
 
   it("should mark player submitted after typing submission", () => {

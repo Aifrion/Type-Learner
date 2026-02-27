@@ -2,6 +2,7 @@ import type { ClipboardEvent, FormEvent, KeyboardEvent } from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkRoomExists } from '@/services/api';
+import { getOrCreateNickname } from '@/utils/nicknameGenerator';
 
 const CODE_LENGTH = 6;
 
@@ -33,11 +34,7 @@ const JoinPage = () => {
         setError('exists');
         return;
       }
-      // Generate and persist a random nickname for the lobby
-      const nick =
-        sessionStorage.getItem('nickname') ||
-        `Player-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-      sessionStorage.setItem('nickname', nick);
+      getOrCreateNickname();
       sessionStorage.removeItem("hostRoomCode");
       navigate(`/lobby/${code}`);
     } catch (err) {
