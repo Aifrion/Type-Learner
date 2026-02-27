@@ -34,6 +34,13 @@ interface SubmitTypingData {
   accuracy: number;
 }
 
+interface SubmitScoreData {
+  code: string;
+  isCorrect: boolean;
+  typingSpeed: number;
+  accuracy: number;
+}
+
 interface RequestRoomStateData {
   code: string;
 }
@@ -47,6 +54,18 @@ interface Socket {
 interface IO {
   to(room: string): { emit(event: string, data: unknown): void };
 }
+
+export interface LeaderboardEntry {
+  socketId: string;
+  nickname: string;
+  score: number;
+  rank: number;
+}
+
+type PersistRoomScores = (
+  roomCode: string,
+  leaderboard: LeaderboardEntry[],
+) => Promise<void> | void;
 
 const MC_DURATION_MS = 15_000;
 const TYPING_DURATION_MS = 30_000;
@@ -115,6 +134,17 @@ function broadcastState(io: IO, room: GameRoom) {
   io.to(room.code).emit("room-state", toRoomState(room));
 }
 
+export function getLeaderboard(room: GameRoom): LeaderboardEntry[] {
+  return [...room.players.values()]
+    .sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname))
+    .map((player, index) => ({
+      socketId: player.socketId,
+      nickname: player.nickname,
+      score: player.score,
+      rank: index + 1,
+    }));
+}
+
 function resetPlayerSubmissionState(room: GameRoom) {
   for (const player of room.players.values()) {
     player.hasSubmitted = false;
@@ -160,84 +190,12 @@ export function handleCreateGame(
   socket.emit("room-state", toRoomState(room));
 }
 
-export function handleJoinGame(
-  socket: Socket,
-  data: JoinGameData,
-  rooms: Map<string, GameRoom>,
-  io: IoLike
-): void {
-  const room = rooms.get(data.code);
-
-  if (!room) {
-    socket.emit("join-error", { message: "Room not found." });
-    return;
-  }
-
-  if (room.phase !== "lobby") {
-    socket.emit("join-error", { message: "Room is no longer accepting players." });
-    return;
-  }
-
-  const nickname = data.nickname.trim();
-  if (!nickname) {
-    socket.emit("join-error", { message: "Nickname is required." });
-    return;
-  }
-
-  const duplicate = [...room.players.values()].some(
-    (player) => player.nickname.toLowerCase() === nickname.toLowerCase()
-  );
-  if (duplicate) {
-    socket.emit("join-error", { message: "Nickname already taken." });
-    return;
-  }
-
-  room.addPlayer({
-    socketId: socket.id,
-    nickname,
-    score: 0,
-    hasSubmitted: false,
-  });
-
-  socket.join(room.code);
-  socket.emit("joined-game", { code: room.code, nickname, phase: room.phase });
-  emitRoomState(io, room);
-}
-
-export function handleStartGame(
-  socket: Socket,
-  data: StartGameData,
-  rooms: Map<string, GameRoom>,
-  io: IoLike
-): void {
-  const room = rooms.get(data.code);
-
-  if (!room) {
-    socket.emit("start-game-error", { message: "Room not found." });
-    return;
-  }
-
-  if (room.hostSocketId !== socket.id) {
-    socket.emit("start-game-error", { message: "Only the host can start the game." });
-    return;
-  }
-
-  if (room.phase !== "lobby") {
-    socket.emit("start-game-error", { message: "Game has already started." });
-    return;
-  }
-
-  room.phase = "multiple_choice";
-  io.to(room.code).emit("game-started", { code: room.code, phase: room.phase });
-  emitRoomState(io, room);
-}
-
 export function handleSubmitScore(
   socket: Socket,
   data: SubmitScoreData,
   rooms: Map<string, GameRoom>,
-  io: IoLike,
-  persistRoomScores?: PersistRoomScores
+  io: IO,
+  persistRoomScores?: PersistRoomScores,
 ): void {
   const room = rooms.get(data.code);
 
@@ -299,7 +257,7 @@ export function handleSubmitScore(
     });
   }
 
-  emitRoomState(io, room);
+  broadcastState(io, room);
 
   if (allSubmitted) {
     io.to(room.code).emit("phase-changed", { phase: room.phase });
@@ -372,6 +330,7 @@ export function handleStartGame(
   room.phase = "multiple_choice";
   room.currentQuestionIndex = 0;
   resetPlayerSubmissionState(room);
+  io.to(room.code).emit("game-started", { code: room.code, phase: room.phase });
   setPhaseTimer(room, io, MC_DURATION_MS, () =>
     advanceToNextPhase(room, io)
   );

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Lobby from "@/pages/Lobby";
+import TeacherWaitingRoom from "@/pages/TeacherWaitingRoom";
 
 type SocketHandler = (payload: any) => void;
 
@@ -16,10 +17,19 @@ const mockSocket = {
     handlers.delete(event);
   }),
   emit: emitMock,
+  connected: true,
 };
 
 vi.mock("@/hooks/useSocket", () => ({
   useSocket: () => mockSocket,
+}));
+
+vi.mock("@/utils/nicknameGenerator", () => ({
+  getOrCreateNickname: () => "Kai",
+}));
+
+vi.mock("@/firebase", () => ({
+  auth: { currentUser: { uid: "host-uid" } },
 }));
 
 describe("Lobby page", () => {
@@ -30,14 +40,19 @@ describe("Lobby page", () => {
     mockSocket.off.mockClear();
   });
 
-  it("shows players in lobby and lets host start the game", async () => {
+  it("shows players in lobby after auto-joining", async () => {
     render(
-      <MemoryRouter initialEntries={["/lobby/ROOM?role=host"]}>
+      <MemoryRouter initialEntries={["/lobby/ROOM?role=student"]}>
         <Routes>
           <Route path="/lobby/:code" element={<Lobby />} />
         </Routes>
       </MemoryRouter>
     );
+
+    expect(emitMock).toHaveBeenCalledWith("join-game", {
+      code: "ROOM",
+      nickname: "Kai",
+    });
 
     const roomStateHandler = handlers.get("room-state");
     expect(roomStateHandler).toBeDefined();
@@ -61,28 +76,62 @@ describe("Lobby page", () => {
     await waitFor(() => {
       expect(screen.getByText("Ada")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /start game/i }));
-
-    expect(emitMock).toHaveBeenCalledWith("start-game", { code: "ROOM" });
+    expect(screen.getByRole("button", { name: /leave lobby/i })).toBeInTheDocument();
   });
 
-  it("allows a student to join a room", () => {
+  it("lets host start the game from teacher waiting room", () => {
     render(
-      <MemoryRouter initialEntries={["/lobby/ROOM?role=student"]}>
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/host/waiting-room",
+            state: {
+              set: {
+                id: "set-1",
+                title: "Test Quiz",
+                ownerId: "host-uid",
+                questions: [
+                  {
+                    prompt: "What does HTML stand for?",
+                    options: ["A", "B", "C", "D"],
+                    correctOptionIndex: 0,
+                  },
+                ],
+              },
+            },
+          },
+        ]}
+      >
         <Routes>
-          <Route path="/lobby/:code" element={<Lobby />} />
+          <Route path="/host/waiting-room" element={<TeacherWaitingRoom />} />
         </Routes>
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByPlaceholderText(/enter your nickname/i), {
-      target: { value: "Kai" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /join room/i }));
+    expect(emitMock).toHaveBeenCalledWith("create-game", expect.objectContaining({
+      title: "Test Quiz",
+      ownerId: "host-uid",
+    }));
 
-    expect(emitMock).toHaveBeenCalledWith("join-game", {
-      code: "ROOM",
-      nickname: "Kai",
+    const gameCreatedHandler = handlers.get("game-created");
+    const roomStateHandler = handlers.get("room-state");
+    expect(gameCreatedHandler).toBeDefined();
+    expect(roomStateHandler).toBeDefined();
+
+    act(() => {
+      gameCreatedHandler?.({ code: "ROOM" });
+      roomStateHandler?.({
+        code: "ROOM",
+        phase: "lobby",
+        currentQuestionIndex: 0,
+        players: [{ socketId: "student-1", nickname: "Ada", score: 0 }],
+      });
     });
+
+    const startButton = screen.getByRole("button", { name: /start game/i });
+    expect(startButton).not.toBeDisabled();
+    fireEvent.click(startButton);
+
+    expect(emitMock).toHaveBeenCalledWith("start-game", { code: "ROOM" });
   });
 });

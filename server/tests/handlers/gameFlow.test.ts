@@ -42,13 +42,15 @@ function createMockIo() {
 
 describe("game flow handlers", () => {
   let rooms: Map<string, GameRoom>;
+  const roomTitle = "Test Quiz";
+  const roomOwnerId = "test-owner";
 
   beforeEach(() => {
     rooms = new Map();
   });
 
   it("adds a student to the lobby and broadcasts room-state sync", () => {
-    const room = new GameRoom("ROOM01", "host_socket", SAMPLE_QUESTIONS);
+    const room = new GameRoom("ROOM01", "host_socket", roomTitle, roomOwnerId, SAMPLE_QUESTIONS);
     rooms.set(room.code, room);
 
     const student = createMockSocket("student_socket");
@@ -64,7 +66,7 @@ describe("game flow handlers", () => {
   });
 
   it("allows the host to start the game and transition to multiple_choice", () => {
-    const room = new GameRoom("ROOM01", "host_socket", SAMPLE_QUESTIONS);
+    const room = new GameRoom("ROOM01", "host_socket", roomTitle, roomOwnerId, SAMPLE_QUESTIONS);
     room.addPlayer({
       socketId: "student_socket",
       nickname: "Ada",
@@ -91,7 +93,7 @@ describe("game flow handlers", () => {
   });
 
   it("blocks non-host users from starting the game", () => {
-    const room = new GameRoom("ROOM01", "host_socket", SAMPLE_QUESTIONS);
+    const room = new GameRoom("ROOM01", "host_socket", roomTitle, roomOwnerId, SAMPLE_QUESTIONS);
     rooms.set(room.code, room);
 
     const student = createMockSocket("student_socket");
@@ -101,13 +103,13 @@ describe("game flow handlers", () => {
 
     expect(room.phase).toBe("lobby");
     expect(student.emittedEvents).toContainEqual([
-      "start-game-error",
-      { message: "Only the host can start the game." },
+      "error",
+      { message: "Only host can start the game" },
     ]);
   });
 
   it("updates scores, emits leaderboard updates, and transitions to scoreboard after all submissions", () => {
-    const room = new GameRoom("ROOM01", "host_socket", SAMPLE_QUESTIONS);
+    const room = new GameRoom("ROOM01", "host_socket", roomTitle, roomOwnerId, SAMPLE_QUESTIONS);
     room.phase = "multiple_choice";
     room.addPlayer({
       socketId: "s1",
