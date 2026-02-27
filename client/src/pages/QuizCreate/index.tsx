@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuizDatabase } from '@/hooks/useQuizDatabase'; 
 import { QuizQuestion } from '@/types'; 
 import QuestionEditor from './components/QuestionEditor';
@@ -10,7 +10,10 @@ import '../../styles/QuizCreate.css';
 
 const QuizCreate: React.FC = () => {
   const navigate = useNavigate();
-  const { saveQuiz, isSaving, error } = useQuizDatabase();
+  const { id } = useParams<{ id: string }>(); // Detect if Edit mode
+  const isEditMode = Boolean(id);
+  
+  const { saveQuiz, getQuiz, updateQuiz, isSaving, isLoading, error } = useQuizDatabase();
   
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion>({
@@ -18,11 +21,27 @@ const QuizCreate: React.FC = () => {
     options: ['', ''], 
     correctOptionIndex: 0,
   });
-
   const [quizTitle, setQuizTitle] = useState('');
+
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Fetch existing quiz data when in edit mode
+  useEffect(() => {
+    const loadQuizData = async () => {
+      if (isEditMode && id) {
+        const existingQuiz = await getQuiz(id);
+        if (existingQuiz) {
+          setQuizTitle(existingQuiz.title);
+          setQuestions(existingQuiz.questions);
+        } else {
+          showAlert("Could not load quiz data.", false);
+        }
+      }
+    };
+    loadQuizData();
+  }, [id, isEditMode]);
 
   const showAlert = (message: string, success = false) => {
     setModalMessage(message);
@@ -33,7 +52,7 @@ const QuizCreate: React.FC = () => {
   const closeModal = () => {
     setShowModal(false);
     setModalMessage('');
-    if (isSuccess) navigate(-1); 
+    if (isSuccess) navigate('/host/dashboard'); 
   };
 
   const handleAddQuestion = () => {
@@ -61,37 +80,40 @@ const QuizCreate: React.FC = () => {
   };
 
   const handleDone = async () => {
-    if (!quizTitle.trim()) {
-      showAlert("Please enter a title to your quiz.");
-      return;
-    }
-    if (questions.length === 0) {
-      showAlert("Please add at least one question to save the quiz.");
+    if (!quizTitle.trim() || questions.length === 0) {
+      showAlert("Please enter a title and at least one question.");
       return;
     }
 
-    const currentUserId = import.meta.env.VITE_MOCK_USER_ID;
-    const success = await saveQuiz(quizTitle, questions, currentUserId);
+    let success = false;
+    
+    // Branch logic based on mode
+    if (isEditMode && id) {
+      success = await updateQuiz(id, quizTitle, questions);
+    } else {
+      const currentUserId = import.meta.env.VITE_MOCK_USER_ID;
+      success = await saveQuiz(quizTitle, questions, currentUserId);
+    }
     
     if (success) {
-      showAlert("Quiz created successfully!", true);
+      showAlert(`Quiz ${isEditMode ? 'updated' : 'created'} successfully!`, true);
     } else {
       // Prioritize hook error if available, else generic message
-      showAlert(error || "Failed to save quiz. Please try again.");
+      showAlert(error || "Failed to save quiz.");
     }
   };
 
+  if (isLoading) return <div className="quiz-create-container">Loading editor...</div>;
+
   return (
     <div className="quiz-create-container">
-      {}
-      <h1>Create Quiz</h1>
+      <h1>{isEditMode ? 'Edit Quiz' : 'Create Quiz'}</h1>
 
-      {}
       <QuizCreateNavbar 
         quizTitle={quizTitle}
         setQuizTitle={setQuizTitle}
         onDone={handleDone}
-        onExit={() => navigate(-1)}
+        onExit={() => navigate('/host/dashboard')}
         isSaving={isSaving}
       />
       <hr />
@@ -102,7 +124,6 @@ const QuizCreate: React.FC = () => {
           setCurrentQuestion={setCurrentQuestion} 
           onSaveQuestion={handleAddQuestion} 
         />
-        
         <QuestionList 
           questions={questions} 
           onEditQuestion={handleEditQuestion} 
@@ -110,11 +131,7 @@ const QuizCreate: React.FC = () => {
         />
       </div> 
 
-      <AlertModal 
-        isOpen={showModal} 
-        message={modalMessage} 
-        onClose={closeModal} 
-      />
+      <AlertModal isOpen={showModal} message={modalMessage} onClose={closeModal} />
     </div>
   );
 };
