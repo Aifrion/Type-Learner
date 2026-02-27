@@ -33,6 +33,10 @@ interface SubmitTypingData {
   accuracy: number;
 }
 
+interface RequestRoomStateData {
+  code: string;
+}
+
 interface Socket {
   id: string;
   emit(event: string, data: unknown): void;
@@ -59,16 +63,41 @@ function setPhaseTimer(
   broadcastState(io, room);
 }
 
-function broadcastState(io: IO, room: GameRoom) {
-  io.to(room.code).emit("room-state", {
+function toRoomState(room: GameRoom) {
+  return {
     code: room.code,
     phase: room.phase,
     currentQuestionIndex: room.currentQuestionIndex,
+    totalQuestions: room.questions.length,
     question: room.questions[room.currentQuestionIndex] ?? null,
     players: Array.from(room.players.values()),
     timerStartedAt: room.timerStartedAt,
     phaseDurationMs: room.phaseDurationMs,
-  });
+  };
+}
+
+function broadcastState(io: IO, room: GameRoom) {
+  io.to(room.code).emit("room-state", toRoomState(room));
+}
+
+function resetPlayerSubmissionState(room: GameRoom) {
+  for (const player of room.players.values()) {
+    player.hasSubmitted = false;
+  }
+}
+
+function removePlayerSubmissions(room: GameRoom, socketId: string) {
+  for (const submissions of room.mcSubmissions.values()) {
+    submissions.delete(socketId);
+  }
+  for (const submissions of room.typingSubmissions.values()) {
+    submissions.delete(socketId);
+  }
+}
+
+function removePlayerFromRoom(room: GameRoom, socketId: string) {
+  room.removePlayer(socketId);
+  removePlayerSubmissions(room, socketId);
 }
 
 // ── Room lifecycle ──────────────────────────────────────────────────
@@ -78,6 +107,10 @@ export function handleCreateGame(
   data: CreateGameData,
   rooms: Map<string, GameRoom>,
 ): void {
+  if (!Array.isArray(data.questions) || data.questions.length === 0) {
+    socket.emit("error", { message: "At least one question is required" });
+    return;
+  }
   const code = generateRoomCode(rooms);
   const room = new GameRoom(
     code,
@@ -98,9 +131,14 @@ export function handleJoinGame(
   io: IO,
 ): void {
   const room = rooms.get(data.code);
+  const nickname = data.nickname?.trim();
 
   if (!room) {
     socket.emit("error", { message: "Room not found" });
+    return;
+  }
+  if (!nickname) {
+    socket.emit("error", { message: "Nickname is required" });
     return;
   }
 
@@ -109,14 +147,28 @@ export function handleJoinGame(
     return;
   }
 
-  const player: Player = {
-    socketId: socket.id,
-    nickname: data.nickname,
-    score: 0,
-    hasSubmitted: false,
-  };
+  for (const [existingSocketId, existingPlayer] of room.players.entries()) {
+    if (
+      existingSocketId !== socket.id &&
+      existingPlayer.nickname === nickname
+    ) {
+      removePlayerFromRoom(room, existingSocketId);
+    }
+  }
 
-  room.addPlayer(player);
+  const existingPlayer = room.players.get(socket.id);
+  if (existingPlayer) {
+    existingPlayer.nickname = nickname;
+  } else {
+    const player: Player = {
+      socketId: socket.id,
+      nickname,
+      score: 0,
+      hasSubmitted: false,
+    };
+    room.addPlayer(player);
+  }
+
   socket.join(data.code);
   broadcastState(io, room);
 }
@@ -144,7 +196,10 @@ export function handleStartGame(
   }
   room.phase = "multiple_choice";
   room.currentQuestionIndex = 0;
-  setPhaseTimer(room, io, MC_DURATION_MS, () => advanceToNextPhase(room, io));
+  resetPlayerSubmissionState(room);
+  setPhaseTimer(room, io, MC_DURATION_MS, () =>
+    advanceToNextPhase(room, io)
+  );
 }
 
 export function handleSubmitMultipleChoice(
@@ -162,6 +217,14 @@ export function handleSubmitMultipleChoice(
     socket.emit("error", {
       message: "Not accepting multiple choice answers now",
     });
+    return;
+  }
+  if (
+    !Number.isInteger(data.answerIndex) ||
+    data.answerIndex < 0 ||
+    data.answerIndex >= room.questions[room.currentQuestionIndex].options.length
+  ) {
+    socket.emit("error", { message: "Invalid answer option" });
     return;
   }
   const player = room.players.get(socket.id);
@@ -204,6 +267,14 @@ export function handleSubmitTyping(
     socket.emit("error", { message: "Not accepting typing submissions now" });
     return;
   }
+  if (!Number.isFinite(data.wpm) || data.wpm < 0) {
+    socket.emit("error", { message: "Invalid wpm value" });
+    return;
+  }
+  if (!Number.isFinite(data.accuracy) || data.accuracy < 0 || data.accuracy > 100) {
+    socket.emit("error", { message: "Invalid accuracy value" });
+    return;
+  }
   const player = room.players.get(socket.id);
   if (!player) {
     socket.emit("error", { message: "Player not in room" });
@@ -226,6 +297,7 @@ export function handleSubmitTyping(
     room.typingSubmissions.set(room.currentQuestionIndex, new Map());
   }
   room.typingSubmissions.get(room.currentQuestionIndex)!.set(socket.id, record);
+  player.hasSubmitted = true;
   broadcastState(io, room);
 }
 
@@ -244,7 +316,33 @@ export function handleAdvancePhase(
     socket.emit("error", { message: "Only host can advance phase" });
     return;
   }
+  if (room.phase === "completed") {
+    socket.emit("error", { message: "Game already completed" });
+    return;
+  }
   advanceToNextPhase(room, io);
+}
+
+export function handleRequestRoomState(
+  socket: Socket,
+  data: RequestRoomStateData,
+  rooms: Map<string, GameRoom>,
+): void {
+  const room = rooms.get(data.code);
+  if (!room) {
+    socket.emit("error", { message: "Room not found" });
+    return;
+  }
+
+  const isHost = room.hostSocketId === socket.id;
+  const isPlayer = room.players.has(socket.id);
+  if (!isHost && !isPlayer) {
+    socket.emit("error", { message: "Player not in room" });
+    return;
+  }
+
+  socket.join(room.code);
+  socket.emit("room-state", toRoomState(room));
 }
 
 // ── Scoring ─────────────────────────────────────────────────────────
@@ -277,6 +375,7 @@ function advanceToNextPhase(room: GameRoom, io: IO) {
   if (room.phase === "multiple_choice") {
     scoreMultipleChoice(room);
     room.phase = "typing";
+    resetPlayerSubmissionState(room);
     setPhaseTimer(room, io, TYPING_DURATION_MS, () =>
       advanceToNextPhase(room, io),
     );
@@ -288,6 +387,7 @@ function advanceToNextPhase(room: GameRoom, io: IO) {
     if (room.currentQuestionIndex < room.questions.length - 1) {
       room.currentQuestionIndex += 1;
       room.phase = "multiple_choice";
+      resetPlayerSubmissionState(room);
       setPhaseTimer(room, io, MC_DURATION_MS, () =>
         advanceToNextPhase(room, io),
       );
@@ -320,15 +420,7 @@ export function handleDisconnect(
 
     // Regular player disconnect
     if (room.players.has(socketId)) {
-      room.players.delete(socketId);
-
-      // Clean submissions from this player
-      for (const submissions of room.mcSubmissions.values()) {
-        submissions.delete(socketId);
-      }
-      for (const submissions of room.typingSubmissions.values()) {
-        submissions.delete(socketId);
-      }
+      removePlayerFromRoom(room, socketId);
       if (io) {
         broadcastState(io, room);
       }

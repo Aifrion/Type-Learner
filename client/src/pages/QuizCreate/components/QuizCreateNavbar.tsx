@@ -1,5 +1,3 @@
-import React from "react";
-
 interface QuizCreateNavbarProps {
   quizTitle: string;
   setQuizTitle: (title: string) => void;

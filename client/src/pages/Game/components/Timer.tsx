@@ -1,27 +1,43 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface TimerProps {
   duration: number;
   onTimeUp: () => void;
   isRunning: boolean;
+  endsAtMs?: number;
 }
 
-export default function Timer({ duration, onTimeUp, isRunning }: TimerProps) {
-  const [timeLeft, setTimeLeft] = useState(duration);
+function getTimeLeftFromEnd(endsAtMs: number) {
+  return Math.max(0, Math.ceil((endsAtMs - Date.now()) / 1000));
+}
+
+export default function Timer({ duration, onTimeUp, isRunning, endsAtMs }: TimerProps) {
+  const [timeLeft, setTimeLeft] = useState(
+    endsAtMs ? getTimeLeftFromEnd(endsAtMs) : duration
+  );
+  const didCallOnTimeUpRef = useRef(false);
 
   useEffect(() => {
-    setTimeLeft(duration);
-  }, [duration]);
+    didCallOnTimeUpRef.current = false;
+    setTimeLeft(endsAtMs ? getTimeLeftFromEnd(endsAtMs) : duration);
+  }, [duration, endsAtMs]);
 
   useEffect(() => {
     if (!isRunning) return;
 
     if (timeLeft <= 0) {
-      onTimeUp();
+      if (!didCallOnTimeUpRef.current) {
+        didCallOnTimeUpRef.current = true;
+        onTimeUp();
+      }
       return;
     }
 
     const interval = setInterval(() => {
+      if (endsAtMs) {
+        setTimeLeft(getTimeLeftFromEnd(endsAtMs));
+        return;
+      }
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
@@ -29,10 +45,10 @@ export default function Timer({ duration, onTimeUp, isRunning }: TimerProps) {
         }
         return prev - 1;
       });
-    }, 1000);
+    }, endsAtMs ? 250 : 1000);
 
     return () => clearInterval(interval);
-  }, [isRunning, timeLeft, onTimeUp]);
+  }, [isRunning, timeLeft, onTimeUp, endsAtMs]);
 
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);

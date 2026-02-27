@@ -1,25 +1,54 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import Game from "@/pages/Game";
 import type { TypingStats } from "@/types";
-import {
-  saveTypingSession,
-  getTypingSession,
-  clearTypingSession,
-} from "@/services/sessionStorage";
 
-const phaseStats: TypingStats = { wpm: 1, accuracy: 100, correctChars: 1, totalChars: 1 };
+const handlers = new Map<string, Set<(payload: unknown) => void>>();
 
-vi.mock("@/services/sessionStorage", () => ({
-  saveTypingSession: vi.fn(),
-  getTypingSession: vi.fn(),
-  clearTypingSession: vi.fn(),
+const addHandler = (event: string, cb: (payload: unknown) => void) => {
+  if (!handlers.has(event)) {
+    handlers.set(event, new Set());
+  }
+  handlers.get(event)?.add(cb);
+};
+
+const removeHandler = (event: string, cb: (payload: unknown) => void) => {
+  handlers.get(event)?.delete(cb);
+};
+
+const emitToClient = (event: string, payload: unknown) => {
+  act(() => {
+    handlers.get(event)?.forEach((cb) => cb(payload));
+  });
+};
+
+const socketMock = {
+  connected: true,
+  id: "socket-1",
+  on: vi.fn((event: string, cb: (payload: unknown) => void) => {
+    addHandler(event, cb);
+    return socketMock;
+  }),
+  off: vi.fn((event: string, cb: (payload: unknown) => void) => {
+    removeHandler(event, cb);
+    return socketMock;
+  }),
+  once: vi.fn(),
+  emit: vi.fn(),
+  connect: vi.fn(),
+};
+
+vi.mock("@/hooks/useSocket", () => ({
+  useSocket: () => socketMock,
 }));
 
-const saveTypingSessionMock = vi.mocked(saveTypingSession);
-const getTypingSessionMock = vi.mocked(getTypingSession);
-const clearTypingSessionMock = vi.mocked(clearTypingSession);
+const phaseStats: TypingStats = {
+  wpm: 33,
+  accuracy: 91,
+  correctChars: 33,
+  totalChars: 36,
+};
 
 vi.mock("@/pages/Game/components/TypingPhase", () => ({
   default: ({
@@ -44,103 +73,13 @@ vi.mock("@/pages/Game/components/TypingPhase", () => ({
   ),
 }));
 
-const mockGetDoc = vi.fn();
-
-vi.mock("firebase/firestore", async (orig) => {
-  const actual = (await orig()) as Record<string, unknown>;
-  return {
-    ...actual,
-    doc: vi.fn(() => "doc-ref"),
-    getDoc: (...args: unknown[]) => mockGetDoc(...args),
-  };
-});
-
-vi.mock("@/firebase", () => ({ db: {} }));
-
 describe("Game page", () => {
   beforeEach(() => {
+    handlers.clear();
     vi.clearAllMocks();
-    getTypingSessionMock.mockReturnValue(null);
   });
 
-  it("renders TypingPhase with mock question data", async () => {
-    render(
-      <MemoryRouter initialEntries={["/typing/practice"]}>
-        <Routes>
-          <Route path="/typing/:code" element={<Game />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/Mock TypingPhase/i)).toBeInTheDocument();
-    });
-
-    expect(
-      screen.getByText(/What gas do plants absorb from the atmosphere during photosynthesis\?/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText("Q4/10")).toBeInTheDocument();
-    expect(saveTypingSessionMock).toHaveBeenCalledWith(
-      "practice",
-      expect.objectContaining({
-        code: "practice",
-        question: expect.objectContaining({
-          answer:
-            "Plants absorb carbon dioxide from the atmosphere during photosynthesis.",
-        }),
-      })
-    );
-  });
-
-  it("handles phase completion without error", async () => {
-    mockGetDoc.mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({
-        questions: [
-          {
-            question: "Capital of France?",
-            answers: ["Paris", "London", "Berlin", "Rome"],
-            correctAnswer: 0,
-          },
-        ],
-      }),
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/typing/ROOM?q=0"]}>
-        <Routes>
-          <Route path="/typing/:code" element={<Game />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/Mock TypingPhase/i)).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText("Finish Phase"));
-
-    // No visible output from handler, just ensure click doesn't throw and button remains
-    expect(screen.getByText("Finish Phase")).toBeInTheDocument();
-    expect(clearTypingSessionMock).toHaveBeenCalledWith("ROOM");
-  });
-
-  it("uses existing session data when available", () => {
-    getTypingSessionMock.mockReturnValue({
-      code: "ROOM",
-      question: {
-        id: "q-2",
-        text: "Stored question text",
-        answer: "Stored answer",
-        timeLimit: 25,
-      },
-      gameState: {
-        currentQuestion: 2,
-        totalQuestions: 7,
-      },
-      startedAt: 123,
-    });
-
+  it("requests room state on mount", () => {
     render(
       <MemoryRouter initialEntries={["/typing/ROOM"]}>
         <Routes>
@@ -149,8 +88,101 @@ describe("Game page", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText("Stored question text")).toBeInTheDocument();
-    expect(screen.getByText("Q2/7")).toBeInTheDocument();
-    expect(saveTypingSessionMock).not.toHaveBeenCalled();
+    expect(socketMock.emit).toHaveBeenCalledWith(
+      "request-room-state",
+      { code: "ROOM" }
+    );
+  });
+
+  it("renders typing content from room-state and submits typing stats", async () => {
+    render(
+      <MemoryRouter initialEntries={["/typing/ROOM"]}>
+        <Routes>
+          <Route path="/typing/:code" element={<Game />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    emitToClient("room-state", {
+      code: "ROOM",
+      phase: "typing",
+      currentQuestionIndex: 1,
+      totalQuestions: 5,
+      question: {
+        prompt: "Type this answer",
+        options: ["Correct answer text", "B", "C", "D"],
+        correctOptionIndex: 0,
+      },
+      players: [],
+    });
+
+    expect(await screen.findByText("Mock TypingPhase")).toBeInTheDocument();
+    expect(screen.getByText("Type this answer")).toBeInTheDocument();
+    expect(screen.getByText("Q2/5")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Finish Phase"));
+    expect(socketMock.emit).toHaveBeenCalledWith("submit-typing", {
+      code: "ROOM",
+      wpm: 33,
+      accuracy: 91,
+    });
+  });
+
+  it("redirects back to multiple-choice when phase changes", async () => {
+    render(
+      <MemoryRouter initialEntries={["/typing/ROOM"]}>
+        <Routes>
+          <Route path="/typing/:code" element={<Game />} />
+          <Route path="/question/:code" element={<div>Question Route</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    emitToClient("room-state", {
+      code: "ROOM",
+      phase: "multiple_choice",
+      currentQuestionIndex: 0,
+      totalQuestions: 2,
+      question: {
+        prompt: "MC prompt",
+        options: ["A", "B"],
+        correctOptionIndex: 0,
+      },
+      players: [],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Question Route")).toBeInTheDocument();
+    });
+  });
+
+  it("does not submit typing stats twice when server marks player submitted", async () => {
+    render(
+      <MemoryRouter initialEntries={["/typing/ROOM"]}>
+        <Routes>
+          <Route path="/typing/:code" element={<Game />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    emitToClient("room-state", {
+      code: "ROOM",
+      phase: "typing",
+      currentQuestionIndex: 0,
+      totalQuestions: 1,
+      question: {
+        prompt: "Typing prompt",
+        options: ["A", "B"],
+        correctOptionIndex: 0,
+      },
+      players: [{ socketId: "socket-1", nickname: "Player", score: 0, hasSubmitted: true }],
+    });
+
+    fireEvent.click(await screen.findByText("Finish Phase"));
+
+    expect(socketMock.emit).not.toHaveBeenCalledWith(
+      "submit-typing",
+      expect.objectContaining({ code: "ROOM" })
+    );
   });
 });

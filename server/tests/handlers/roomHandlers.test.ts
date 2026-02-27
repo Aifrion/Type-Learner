@@ -19,7 +19,13 @@ import {
   createPlayer,
   SAMPLE_QUESTIONS,
 } from "../sampleData/gameData";
-import { handleCreateGame, handleDisconnect } from "../../src/handlers/roomHandlers";
+import {
+  handleCreateGame,
+  handleDisconnect,
+  handleJoinGame,
+  handleRequestRoomState,
+  handleSubmitTyping,
+} from "../../src/handlers/roomHandlers";
 
 /**
  * Mock socket factory — creates a fake socket object that tracks
@@ -44,6 +50,18 @@ function createMockSocket(id: string) {
     join(room: string) {
       joinedRooms.push(room);
     },
+  };
+}
+
+function createMockIo() {
+  const emittedEvents: [string, unknown][] = [];
+  return {
+    emittedEvents,
+    to: (_roomCode: string) => ({
+      emit: (event: string, data: unknown) => {
+        emittedEvents.push([event, data]);
+      },
+    }),
   };
 }
 
@@ -139,6 +157,21 @@ describe("Room Creation", () => {
 
     const room = [...rooms.values()][0];
     expect(socket.joinedRooms).toContain(room.code);
+  });
+
+  it("should emit an error and skip creation when no questions are provided", () => {
+    const socket = createMockSocket("host_socket_1");
+    handleCreateGame(
+      socket,
+      { title: "Test Quiz", ownerId: "test_owner", questions: [] },
+      rooms
+    );
+
+    expect(rooms.size).toBe(0);
+    expect(socket.emittedEvents).toContainEqual([
+      "error",
+      { message: "At least one question is required" },
+    ]);
   });
 });
 
@@ -270,5 +303,131 @@ describe("Player State in Room", () => {
     room.players.delete("s1");
 
     expect(room.players.size).toBe(0);
+  });
+
+  it("should preserve score when the same socket joins again", () => {
+    const room = createRoom({ code: "REJOIN1" });
+    const io = createMockIo();
+    const firstSocket = createMockSocket("s1");
+    room.players.set("s1", {
+      socketId: "s1",
+      nickname: "Alice",
+      score: 25,
+      hasSubmitted: true,
+    });
+
+    const rooms = new Map<string, GameRoom>([[room.code, room]]);
+    handleJoinGame(
+      firstSocket,
+      { code: room.code, nickname: "Alice" },
+      rooms,
+      io
+    );
+
+    expect(room.players.get("s1")?.score).toBe(25);
+    expect(room.players.get("s1")?.hasSubmitted).toBe(true);
+  });
+
+  it("should replace stale nickname entries when a new socket joins with same nickname", () => {
+    const room = createRoom({ code: "REJOIN2" });
+    const io = createMockIo();
+    const rooms = new Map<string, GameRoom>([[room.code, room]]);
+
+    room.players.set("old_socket", {
+      socketId: "old_socket",
+      nickname: "Alice",
+      score: 40,
+      hasSubmitted: true,
+    });
+    room.mcSubmissions.set(0, new Map([["old_socket", { answerIndex: 1, submittedAt: Date.now() }]]));
+    room.typingSubmissions.set(0, new Map([["old_socket", { wpm: 50, accuracy: 90, submittedAt: Date.now() }]]));
+
+    const newSocket = createMockSocket("new_socket");
+    handleJoinGame(
+      newSocket,
+      { code: room.code, nickname: "Alice" },
+      rooms,
+      io
+    );
+
+    expect(room.players.has("old_socket")).toBe(false);
+    expect(room.players.has("new_socket")).toBe(true);
+    expect(room.mcSubmissions.get(0)?.has("old_socket")).toBe(false);
+    expect(room.typingSubmissions.get(0)?.has("old_socket")).toBe(false);
+  });
+
+  it("should mark player submitted after typing submission", () => {
+    const room = createRoom({ code: "TYPE01", phase: "typing" });
+    room.players.set("s1", {
+      socketId: "s1",
+      nickname: "Typer",
+      score: 0,
+      hasSubmitted: false,
+    });
+    const rooms = new Map<string, GameRoom>([[room.code, room]]);
+    const io = createMockIo();
+    const socket = createMockSocket("s1");
+
+    handleSubmitTyping(
+      socket,
+      { code: room.code, wpm: 55, accuracy: 95 },
+      rooms,
+      io
+    );
+
+    expect(room.players.get("s1")?.hasSubmitted).toBe(true);
+  });
+
+  it("should keep room alive when last non-host player disconnects", () => {
+    const room = createRoom({ code: "KEEP01", hostSocketId: "host_1" });
+    room.players.set("student_1", {
+      socketId: "student_1",
+      nickname: "Student",
+      score: 0,
+      hasSubmitted: false,
+    });
+    const rooms = new Map<string, GameRoom>([[room.code, room]]);
+    const io = createMockIo();
+
+    handleDisconnect("student_1", rooms, io);
+
+    expect(rooms.has("KEEP01")).toBe(true);
+    expect(room.players.size).toBe(0);
+  });
+
+  it("should return room-state for existing player in active phase", () => {
+    const room = createRoom({ code: "STATE1", phase: "multiple_choice" });
+    room.players.set("student_1", {
+      socketId: "student_1",
+      nickname: "Student",
+      score: 10,
+      hasSubmitted: false,
+    });
+    const rooms = new Map<string, GameRoom>([[room.code, room]]);
+    const socket = createMockSocket("student_1");
+
+    handleRequestRoomState(socket, { code: room.code }, rooms);
+
+    expect(socket.emittedEvents).toContainEqual([
+      "room-state",
+      expect.objectContaining({
+        code: room.code,
+        phase: "multiple_choice",
+        totalQuestions: room.questions.length,
+      }),
+    ]);
+  });
+
+  it("should reject room-state request for socket not in room", () => {
+    const room = createRoom({ code: "STATE2", phase: "multiple_choice" });
+    const rooms = new Map<string, GameRoom>([[room.code, room]]);
+    const socket = createMockSocket("stranger");
+
+    handleRequestRoomState(socket, { code: room.code }, rooms);
+
+    expect(socket.emittedEvents).toContainEqual([
+      "error",
+      { message: "Player not in room" },
+    ]);
   });
 });

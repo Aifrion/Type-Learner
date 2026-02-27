@@ -62,6 +62,22 @@ export default function Lobby() {
     };
   }, [socket, code, nickname]);
 
+  useEffect(() => {
+    if (!roomState || !code) return;
+
+    if (roomState.phase === "multiple_choice") {
+      navigate(`/question/${code}`, { replace: true });
+      return;
+    }
+    if (roomState.phase === "typing") {
+      navigate(`/typing/${code}`, { replace: true });
+      return;
+    }
+    if (roomState.phase === "completed") {
+      navigate(`/results/${code}`, { replace: true });
+    }
+  }, [roomState, code, navigate]);
+
   if (!code) return <p>Missing room code.</p>;
 
   if (error) {
