@@ -528,6 +528,11 @@ function advanceToNextPhase(room: GameRoom, io: IO) {
     } else {
       room.phase = "completed";
       room.clearTimer();
+      io.to(room.code).emit("leaderboard-updated", {
+        code: room.code,
+        phase: room.phase,
+        leaderboard: getLeaderboard(room),
+      });
       broadcastState(io, room);
     }
   }

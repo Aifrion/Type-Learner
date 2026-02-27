@@ -67,9 +67,9 @@ export default function Results() {
     socket.on("leaderboard-updated", handleLeaderboard);
     socket.on("room-state", handleRoomState);
 
-    if (role === "student" && nickname.trim()) {
-      socket.emit("join-game", { code, nickname });
-    }
+    // Request current room state so we get the leaderboard even if we
+    // missed the broadcast that triggered navigation to this page.
+    socket.emit("request-room-state", { code });
 
     return () => {
       socket.off("leaderboard-updated", handleLeaderboard);
