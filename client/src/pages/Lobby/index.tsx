@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSocket } from "@/hooks/useSocket";
+import { getOrCreateNickname } from "@/utils/nicknameGenerator";
 
 type Player = {
   socketId: string;
@@ -24,12 +25,13 @@ export default function Lobby() {
   const [error, setError] = useState<string | null>(null);
 
   const nickname = useMemo(() => {
-    const stored = sessionStorage.getItem("nickname");
-    if (stored) return stored;
-    const generated = `Player-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    sessionStorage.setItem("nickname", generated);
-    return generated;
+    return getOrCreateNickname();
   }, []);
+
+  const serverNickname = roomState?.players.find(
+    (player) => player.socketId === socket?.id,
+  )?.nickname;
+  const displayNickname = serverNickname ?? nickname;
 
   useEffect(() => {
     if (!socket || !code) return;
@@ -78,6 +80,11 @@ export default function Lobby() {
     }
   }, [roomState, code, navigate]);
 
+  useEffect(() => {
+    if (!serverNickname || serverNickname === nickname) return;
+    sessionStorage.setItem("nickname", serverNickname);
+  }, [serverNickname, nickname]);
+
   if (!code) return <p>Missing room code.</p>;
 
   if (error) {
@@ -107,7 +114,7 @@ export default function Lobby() {
           Room code: <span className="font-semibold tracking-widest text-purple-700">{code}</span>
         </p>
         <p className="mt-1 text-center text-sm text-gray-500">
-          Your nickname: <span className="font-semibold text-purple-700">{nickname}</span>
+          Your nickname: <span className="font-semibold text-purple-700">{displayNickname}</span>
         </p>
 
         <div className="mt-6">
