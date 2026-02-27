@@ -20,14 +20,26 @@ vi.mock('../src/hooks/useQuizDatabase', () => ({
   }),
 }));
 
+// Create a stable mock function outside the block
+const mockNavigate = vi.fn(); 
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual as any,
-    useNavigate: () => vi.fn(),
+    // Return the stable reference instead of generating a new one
+    useNavigate: () => mockNavigate, 
     useParams: vi.fn(() => ({})), // Defaults to an empty object (Create Mode)
   };
 });
+
+vi.mock('../src/firebase', () => ({
+  auth: {
+    currentUser: {
+      uid: 'test_teacher_id'
+    }
+  }
+}));
 
 describe('QuizCreate Component (Unified Editor)', () => {
   beforeEach(() => {
@@ -147,6 +159,7 @@ describe('QuizCreate Component (Unified Editor)', () => {
     mockGetQuiz.mockResolvedValue({
       id: 'test_quiz_123',
       title: 'Pre-existing Quiz',
+      ownerId: 'test_teacher_id',
       questions: [{ prompt: 'Old Question?', options: ['Yes', 'No'], correctOptionIndex: 0 }]
     });
 
@@ -170,6 +183,7 @@ describe('QuizCreate Component (Unified Editor)', () => {
     mockGetQuiz.mockResolvedValue({
       id: 'test_quiz_123',
       title: 'Editable Quiz',
+      ownerId: 'test_teacher_id',
       questions: [{ prompt: 'Q1', options: ['A', 'B'], correctOptionIndex: 0 }]
     });
     mockUpdateQuiz.mockResolvedValue(true);

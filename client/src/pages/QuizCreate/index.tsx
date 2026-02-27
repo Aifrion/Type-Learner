@@ -6,7 +6,8 @@ import QuestionEditor from './components/QuestionEditor';
 import QuestionList from './components/QuestionList';
 import AlertModal from './components/AlertModal';
 import QuizCreateNavbar from './components/QuizCreateNavbar';
-import '../../styles/QuizCreate.css'; 
+import '../../styles/QuizCreate.css';
+import { auth } from '@/firebase';
 
 const QuizCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -32,16 +33,24 @@ const QuizCreate: React.FC = () => {
     const loadQuizData = async () => {
       if (isEditMode && id) {
         const existingQuiz = await getQuiz(id);
+        
         if (existingQuiz) {
+          const currentUser = auth.currentUser;
+          if (!currentUser || existingQuiz.ownerId !== currentUser.uid) {
+            showAlert("You do not have permission to edit this quiz.");
+            navigate('/host/dashboard');
+            return; // Stop execution so the quiz data doesn't load
+          }
           setQuizTitle(existingQuiz.title);
           setQuestions(existingQuiz.questions);
         } else {
           showAlert("Could not load quiz data.", false);
+          navigate('/host/dashboard');
         }
       }
     };
     loadQuizData();
-  }, [id, isEditMode]);
+  }, [id, isEditMode, navigate]);
 
   const showAlert = (message: string, success = false) => {
     setModalMessage(message);
@@ -85,20 +94,25 @@ const QuizCreate: React.FC = () => {
       return;
     }
 
+    // Check user authentication before saving
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      showAlert("You must be logged in to save or edit a quiz.");
+      return;
+    }
+
     let success = false;
-    
+
     // Branch logic based on mode
     if (isEditMode && id) {
       success = await updateQuiz(id, quizTitle, questions);
     } else {
-      const currentUserId = import.meta.env.VITE_MOCK_USER_ID;
-      success = await saveQuiz(quizTitle, questions, currentUserId);
+      success = await saveQuiz(quizTitle, questions, currentUser.uid);
     }
     
     if (success) {
       showAlert(`Quiz ${isEditMode ? 'updated' : 'created'} successfully!`, true);
     } else {
-      // Prioritize hook error if available, else generic message
       showAlert(error || "Failed to save quiz.");
     }
   };
