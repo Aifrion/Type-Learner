@@ -147,6 +147,11 @@ export default function Game() {
     (roomState.currentQuestionIndex + 1 > 0 ? roomState.currentQuestionIndex + 1 : 1);
   const currentPlayer = roomState.players.find((player) => player.socketId === socket?.id);
   const hasSubmitted = Boolean(currentPlayer?.hasSubmitted);
+  const totalPlayers = roomState.players?.length ?? 0;
+  const submittedCount =
+    roomState.players?.filter((player) => player.hasSubmitted)?.length ?? 0;
+  const submissionPct = totalPlayers > 0 ? (submittedCount / totalPlayers) * 100 : 0;
+  const allSubmitted = totalPlayers > 0 && submittedCount === totalPlayers;
 
   const handlePhaseComplete = (stats: TypingStats) => {
     if (isHost || hasSubmitted || isSubmitting || !socket || !code) return;
@@ -169,15 +174,38 @@ export default function Game() {
         phaseEndsAt={phaseEndsAt}
       />
       {isHost && (
-        <div className="fixed bottom-6 right-6">
-          <button
-            type="button"
-            onClick={() => socket?.emit("advance-phase", { code })}
-            className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-purple-700"
-          >
-            Advance Phase
-          </button>
-        </div>
+        <>
+          <div className="fixed top-6 right-6 w-64 rounded-2xl border border-purple-200 bg-white/90 px-4 py-3 shadow-lg backdrop-blur">
+            <div className="flex items-center justify-between text-sm font-semibold text-purple-800">
+              <span>Finished typing</span>
+              <span>
+                {submittedCount}/{totalPlayers || "–"}
+              </span>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-purple-100">
+              <div
+                className="h-full rounded-full bg-purple-500 transition-all"
+                style={{ width: `${submissionPct}%` }}
+                aria-label={`Finished ${submittedCount} of ${totalPlayers}`}
+              />
+            </div>
+            <p className="mt-1 text-xs text-purple-700">
+              {allSubmitted
+                ? "Everyone's done. Auto-advancing shortly."
+                : "Live as players submit."}
+            </p>
+          </div>
+
+          <div className="fixed bottom-6 right-6">
+            <button
+              type="button"
+              onClick={() => socket?.emit("advance-phase", { code })}
+              className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-purple-700"
+            >
+              Advance Phase
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
