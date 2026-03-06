@@ -69,6 +69,17 @@ export default function HostDashboard() {
   const [sets, setSets] = useState<QuestionSetSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const handleEdit = (set: QuestionSetSummary) => {
+    // Cannot edit example quiz becuase it doesn't exist in Firebase
+    if (set.id === "example" || set.isExample) {
+      setError("The sample quiz cannot be edited.");
+      return;
+    }
+
+    // Route to the edit page with set ID
+    navigate(`/edit/${set.id}`);
+  };
+
   const handleDelete = async (set: QuestionSetSummary) => {
     if (set.id === "example" || set.isExample) return;
     if (
@@ -192,7 +203,7 @@ export default function HostDashboard() {
                 <div className="flex shrink-0 gap-2">
                   <button
                     type="button"
-                    onClick={() => {}}
+                    onClick={() => handleEdit(s)}
                     className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
                   >
                     Edit
