@@ -114,6 +114,11 @@ export default function Question() {
     !isHost &&
     !hasSubmitted &&
     !isSubmitting;
+  const totalPlayers = roomState?.players?.length ?? 0;
+  const submittedCount =
+    roomState?.players?.filter((player) => player.hasSubmitted)?.length ?? 0;
+  const allSubmitted = totalPlayers > 0 && submittedCount === totalPlayers;
+  const submissionPct = totalPlayers > 0 ? (submittedCount / totalPlayers) * 100 : 0;
 
   const handleSubmit = (answerIndex: number) => {
     if (!canSubmit || !socket || !code) return;
@@ -181,19 +186,43 @@ export default function Question() {
                   Answer submitted. Waiting for next phase...
                 </p>
               )}
-              {isHost && (
-                <button
-                  type="button"
-                  onClick={() => socket?.emit("advance-phase", { code })}
-                  className="w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-700"
-                >
-                  Advance Phase
-                </button>
-              )}
             </div>
           )}
         </div>
       </div>
+      {isHost && (
+        <>
+          <div className="fixed top-6 right-6 w-64 rounded-2xl border border-purple-200 bg-white/90 px-4 py-3 shadow-lg backdrop-blur">
+            <div className="flex items-center justify-between text-sm font-semibold text-purple-800">
+              <span>Answered</span>
+              <span>
+                {submittedCount}/{totalPlayers || "–"}
+              </span>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-purple-100">
+              <div
+                className="h-full rounded-full bg-purple-500 transition-all"
+                style={{ width: `${submissionPct}%` }}
+                aria-label={`Answered ${submittedCount} of ${totalPlayers}`}
+              />
+            </div>
+            <p className="mt-1 text-xs text-purple-700">
+              {allSubmitted
+                ? "Everyone has answered. Auto-advancing shortly."
+                : "Live as players submit."}
+            </p>
+          </div>
+          <div className="fixed bottom-6 right-6">
+            <button
+              type="button"
+              onClick={() => socket?.emit("advance-phase", { code })}
+              className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-purple-700"
+            >
+              Advance Phase
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

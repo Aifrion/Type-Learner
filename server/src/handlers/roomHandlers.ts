@@ -129,6 +129,14 @@ function removePlayerSubmissions(room: GameRoom, socketId: string) {
   }
 }
 
+function everyoneHasSubmitted(room: GameRoom): boolean {
+  if (room.players.size === 0) return false;
+  for (const player of room.players.values()) {
+    if (!player.hasSubmitted) return false;
+  }
+  return true;
+}
+
 function removePlayerFromRoom(room: GameRoom, socketId: string) {
   room.removePlayer(socketId);
   removePlayerSubmissions(room, socketId);
@@ -277,6 +285,10 @@ export function handleSubmitMultipleChoice(
   room.mcSubmissions.get(room.currentQuestionIndex)!.set(socket.id, record);
   player.hasSubmitted = true;
   broadcastState(io, room);
+  if (everyoneHasSubmitted(room)) {
+    room.clearTimer();
+    advanceToNextPhase(room, io);
+  }
 }
 
 export function handleSubmitTyping(
@@ -326,6 +338,10 @@ export function handleSubmitTyping(
   room.typingSubmissions.get(room.currentQuestionIndex)!.set(socket.id, record);
   player.hasSubmitted = true;
   broadcastState(io, room);
+  if (everyoneHasSubmitted(room)) {
+    room.clearTimer();
+    advanceToNextPhase(room, io);
+  }
 }
 
 export function handleAdvancePhase(
