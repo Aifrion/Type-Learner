@@ -74,10 +74,16 @@ export default function Question() {
     };
   }, [socket, code]);
 
+  const [pendingNav, setPendingNav] = useState<string | null>(null);
+
   useEffect(() => {
     if (!roomState || !code) return;
     if (roomState.phase === "typing") {
-      navigate(`/typing/${code}`, { replace: true });
+      if (selectedIndex !== null) {
+        setPendingNav(`/typing/${code}`);
+      } else {
+        navigate(`/typing/${code}`, { replace: true });
+      }
       return;
     }
     if (roomState.phase === "completed") {
@@ -87,7 +93,15 @@ export default function Question() {
     if (roomState.phase === "lobby") {
       navigate(`/lobby/${code}`, { replace: true });
     }
-  }, [roomState, code, navigate]);
+  }, [roomState, code, navigate, selectedIndex]);
+
+  useEffect(() => {
+    if (!pendingNav) return;
+    const timer = setTimeout(() => {
+      navigate(pendingNav, { replace: true });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [pendingNav, navigate]);
 
   useEffect(() => {
     setIsSubmitting(false);
@@ -160,22 +174,40 @@ export default function Question() {
             <div className="mt-6 space-y-4">
               <p className="text-lg font-medium text-slate-800">{question.prompt}</p>
               <div className="space-y-3">
-                {question.options.map((option, index) => (
-                  <button
-                    key={`${option}-${index}`}
-                    type="button"
-                    onClick={() => handleSubmit(index)}
-                    disabled={!canSubmit}
-                    className={`w-full text-left rounded-xl border px-4 py-3 transition ${
-                      selectedIndex === index
-                        ? "border-purple-500 bg-purple-50 text-purple-800"
-                        : "border-slate-200 bg-white text-slate-800"
-                    } disabled:opacity-70 disabled:cursor-not-allowed`}
-                  >
-                    {option}
-                  </button>
-                ))}
+                {question.options.map((option, index) => {
+                  const isSelected = selectedIndex === index;
+                  const showResult = selectedIndex !== null && (hasSubmitted || isSubmitting);
+                  const isCorrectOption = index === question.correctOptionIndex;
+                  let colorClass = "border-slate-200 bg-white text-slate-800";
+                  if (showResult && isCorrectOption) {
+                    colorClass = "border-green-500 bg-green-500 text-white";
+                  } else if (showResult && isSelected && !isCorrectOption) {
+                    colorClass = "border-red-500 bg-red-500 text-white";
+                  } else if (isSelected) {
+                    colorClass = "border-purple-500 bg-purple-50 text-purple-800";
+                  }
+                  return (
+                    <button
+                      key={`${option}-${index}`}
+                      type="button"
+                      onClick={() => handleSubmit(index)}
+                      disabled={!canSubmit}
+                      className={`w-full text-left rounded-xl border px-4 py-3 transition ${colorClass} disabled:opacity-70 disabled:cursor-not-allowed`}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
               </div>
+              {selectedIndex !== null && (hasSubmitted || isSubmitting) && (
+                <p className={`text-sm font-medium mt-2 ${
+                  selectedIndex === question.correctOptionIndex ? "text-green-600" : "text-red-600"
+                }`}>
+                  {selectedIndex === question.correctOptionIndex
+                    ? "Correct!"
+                    : `Wrong — the correct answer is "${question.options[question.correctOptionIndex]}".`}
+                </p>
+              )}
               {isHost && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                   Host view is read-only for answers.
