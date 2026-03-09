@@ -23,6 +23,7 @@ function App() {
       <Route path="/host/dashboard" element={<HostDashboard />} />
       <Route path="/join" element={<Join />} />
       <Route path="/create" element={<QuizCreate />} />
+      <Route path="/edit/:id" element={<QuizCreate />} />
       <Route element={<SocketProvider />}>
         <Route path="/host/waiting-room" element={<TeacherWaitingRoom />} />
         <Route path="/lobby/:code" element={<Lobby />} />
