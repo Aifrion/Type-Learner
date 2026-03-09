@@ -6,6 +6,7 @@ import {
   TypingRecord,
 } from "../types/game";
 import { generateRoomCode } from "../utils/codeGenerator";
+import { calculateScore } from "../utils/score";
 
 interface CreateGameData {
   title: string;
@@ -33,6 +34,13 @@ interface SubmitTypingData {
   accuracy: number;
 }
 
+interface SubmitScoreData {
+  code: string;
+  isCorrect: boolean;
+  typingSpeed: number;
+  accuracy: number;
+}
+
 interface RequestRoomStateData {
   code: string;
 }
@@ -46,6 +54,18 @@ interface Socket {
 interface IO {
   to(room: string): { emit(event: string, data: unknown): void };
 }
+
+export interface LeaderboardEntry {
+  socketId: string;
+  nickname: string;
+  score: number;
+  rank: number;
+}
+
+type PersistRoomScores = (
+  roomCode: string,
+  leaderboard: LeaderboardEntry[],
+) => Promise<void> | void;
 
 const MC_DURATION_MS = 15_000;
 const TYPING_DURATION_MS = 30_000;
@@ -114,6 +134,17 @@ function broadcastState(io: IO, room: GameRoom) {
   io.to(room.code).emit("room-state", toRoomState(room));
 }
 
+export function getLeaderboard(room: GameRoom): LeaderboardEntry[] {
+  return [...room.players.values()]
+    .sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname))
+    .map((player, index) => ({
+      socketId: player.socketId,
+      nickname: player.nickname,
+      score: player.score,
+      rank: index + 1,
+    }));
+}
+
 function resetPlayerSubmissionState(room: GameRoom) {
   for (const player of room.players.values()) {
     player.hasSubmitted = false;
@@ -164,6 +195,81 @@ export function handleCreateGame(
   rooms.set(code, room);
   socket.join(code);
   socket.emit("game-created", { code });
+  socket.emit("room-state", toRoomState(room));
+}
+
+export function handleSubmitScore(
+  socket: Socket,
+  data: SubmitScoreData,
+  rooms: Map<string, GameRoom>,
+  io: IO,
+  persistRoomScores?: PersistRoomScores,
+): void {
+  const room = rooms.get(data.code);
+
+  if (!room) {
+    socket.emit("score-error", { message: "Room not found." });
+    return;
+  }
+
+  const player = room.players.get(socket.id);
+  if (!player) {
+    socket.emit("score-error", { message: "Player not found in room." });
+    return;
+  }
+
+  if (player.hasSubmitted) {
+    socket.emit("score-submitted", {
+      accepted: false,
+      reason: "already-submitted",
+    });
+    return;
+  }
+
+  const earnedScore = calculateScore({
+    isCorrect: data.isCorrect,
+    typingSpeed: data.typingSpeed,
+    accuracy: data.accuracy,
+  });
+
+  player.score += earnedScore;
+  player.hasSubmitted = true;
+
+  const allSubmitted =
+    room.players.size > 0 && [...room.players.values()].every((entry) => entry.hasSubmitted);
+
+  if (allSubmitted) {
+    room.phase = "scoreboard";
+    room.players.forEach((entry) => {
+      entry.hasSubmitted = false;
+    });
+  }
+
+  const leaderboard = getLeaderboard(room);
+
+  socket.emit("score-submitted", {
+    accepted: true,
+    earnedScore,
+    totalScore: player.score,
+  });
+
+  io.to(room.code).emit("leaderboard-updated", {
+    code: room.code,
+    phase: room.phase,
+    leaderboard,
+  });
+
+  if (persistRoomScores) {
+    void Promise.resolve(persistRoomScores(room.code, leaderboard)).catch(() => {
+      // Persistence failures should not block gameplay event flow.
+    });
+  }
+
+  broadcastState(io, room);
+
+  if (allSubmitted) {
+    io.to(room.code).emit("phase-changed", { phase: room.phase });
+  }
 }
 
 export function handleJoinGame(
@@ -232,6 +338,7 @@ export function handleStartGame(
   room.phase = "multiple_choice";
   room.currentQuestionIndex = 0;
   resetPlayerSubmissionState(room);
+  io.to(room.code).emit("game-started", { code: room.code, phase: room.phase });
   setPhaseTimer(room, io, MC_DURATION_MS, () =>
     advanceToNextPhase(room, io)
   );
@@ -437,6 +544,11 @@ function advanceToNextPhase(room: GameRoom, io: IO) {
     } else {
       room.phase = "completed";
       room.clearTimer();
+      io.to(room.code).emit("leaderboard-updated", {
+        code: room.code,
+        phase: room.phase,
+        leaderboard: getLeaderboard(room),
+      });
       broadcastState(io, room);
     }
   }

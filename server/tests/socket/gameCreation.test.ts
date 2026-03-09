@@ -36,7 +36,9 @@ afterEach(
     new Promise<void>((resolve) => {
       rooms.clear();
       if (clientSocket?.connected) clientSocket.disconnect();
-      io.close(() => resolve());
+      io.close(() => {
+        httpServer.close(() => resolve());
+      });
     })
 );
 
