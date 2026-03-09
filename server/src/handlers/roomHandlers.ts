@@ -47,8 +47,8 @@ interface IO {
   to(room: string): { emit(event: string, data: unknown): void };
 }
 
-const MC_DURATION_MS = 15_000;
-const TYPING_DURATION_MS = 30_000;
+const MC_DURATION_MS = 60_000;
+const TYPING_DURATION_MS = 60_000;
 
 function normalizeNickname(rawNickname: string): string {
   return rawNickname.trim().replace(/\s+/g, " ");
