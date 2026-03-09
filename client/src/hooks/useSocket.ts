@@ -8,7 +8,7 @@ export function SocketProvider() {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    const s = io();
+    const s = io(import.meta.env.VITE_WS_URL || undefined);
     setSocket(s);
 
     return () => {
